@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "detectedDomain": {
+      "type": "string",
+      "description": "The domain provided or confirmed by the user in the current interaction, such as 'api.example.com'. This must be null if no domain was detected in this input."
+    },
+    "userResponse": {
+      "type": "string",
+      "description": "The message shown to the user, clearly acknowledging the detected domain or guiding the user to provide one."
+    },
+    "isConfirmed": {
+      "type": "boolean",
+      "description": "True if the user confirmed the domain, false otherwise."
+    }
+  },
+  "required": ["detectedDomain", "userResponse", "isConfirmed"],
+  "x-userType": "ApiTestingAgent.Resources.Schemas.DomainSelectionOutput, ApiTestingAgent"
+}

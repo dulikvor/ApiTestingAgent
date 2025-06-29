@@ -1,0 +1,15 @@
+*As Context for you*
+
+Selections made by the user in previous steps:
+Selected Domain: 
+{{SelectedDomain}}
+
+Detected Rest operations:
+{{DetectedRestoperations}}
+
+
+Selected Command:
+{{SelectedCommand}}
+
+Selected Command Result:
+{{SelectedCommandResult}}

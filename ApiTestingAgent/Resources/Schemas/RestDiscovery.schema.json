@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "userResponse": {
+      "type": "string",
+      "description": "The formatted message to the user."
+    },
+    "rawSwaggerContent": {
+      "type": "string",
+      "description": "JSON content returned from fetchSwagger tool, or null if not available."
+    },
+    "detectedOperations": {
+      "type": "array",
+      "description": "List of parsed operations from restParser, or null if not available.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "isConfirmed": {
+      "type": "boolean",
+      "description": "True if user confirmed the operations, false otherwise."
+    }
+  },
+  "required": ["userResponse", "rawSwaggerContent", "detectedOperations", "isConfirmed"],
+  "x-userType": "ApiTestingAgent.Resources.Schemas.RestDiscoveryOutput, ApiTestingAgent"
+}
