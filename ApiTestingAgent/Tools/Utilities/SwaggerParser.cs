@@ -132,123 +132,131 @@ namespace ApiTestingAgent.Tools.Utitlities
 
         public static List<SwaggerOperation> ParseOperations(string swaggerJson)
         {
-            var operations = new List<SwaggerOperation>();
-            var doc = JsonNode.Parse(swaggerJson);
-            if (doc == null) return operations;
-
-            // Try to get api-version from top-level info.version or x-ms-api-version
-            string apiVersion = null;
-            if (doc["info"] is JsonObject infoObj)
+            try
             {
-                if (infoObj.TryGetPropertyValue("version", out var versionNode) && versionNode is JsonValue versionVal)
+                var operations = new List<SwaggerOperation>();
+                var doc = JsonNode.Parse(swaggerJson);
+                if (doc == null) return operations;
+
+                // Try to get api-version from top-level info.version or x-ms-api-version
+                string apiVersion = null;
+                if (doc["info"] is JsonObject infoObj)
                 {
-                    apiVersion = versionVal.ToString();
-                }
-            }
-
-            var paths = doc["paths"] as JsonObject;
-            if (paths == null) return operations;
-
-            foreach (var pathKvp in paths)
-            {
-                string url = pathKvp.Key;
-                var methods = pathKvp.Value as JsonObject;
-                if (methods == null) continue;
-
-                foreach (var methodKvp in methods)
-                {
-                    string httpMethod = methodKvp.Key.ToUpperInvariant();
-                    var operationObj = methodKvp.Value as JsonObject;
-                    JsonNode? content = null;
-                    if (operationObj != null && operationObj.TryGetPropertyValue("requestBody", out var requestBody))
+                    if (infoObj.TryGetPropertyValue("version", out var versionNode) && versionNode is JsonValue versionVal)
                     {
-                        if (requestBody is JsonObject requestBodyObj)
+                        apiVersion = versionVal.ToString();
+                    }
+                }
+
+                var paths = doc["paths"] as JsonObject;
+                if (paths == null) return operations;
+
+                foreach (var pathKvp in paths)
+                {
+                    string url = pathKvp.Key;
+                    var methods = pathKvp.Value as JsonObject;
+                    if (methods == null) continue;
+
+                    foreach (var methodKvp in methods)
+                    {
+                        string httpMethod = methodKvp.Key.ToUpperInvariant();
+                        var operationObj = methodKvp.Value as JsonObject;
+                        JsonNode? content = null;
+                        if (operationObj != null && operationObj.TryGetPropertyValue("requestBody", out var requestBody))
                         {
-                            // Handle $ref in requestBody
-                            if (requestBodyObj.TryGetPropertyValue("$ref", out var refNode) && refNode is JsonValue refVal)
+                            if (requestBody is JsonObject requestBodyObj)
                             {
-                                var resolved = ResolveRef(doc, refVal.ToString());
-                                if (resolved is JsonObject resolvedObj && resolvedObj.TryGetPropertyValue("content", out var resolvedContent))
-                                    content = resolvedContent;
-                            }
-                            else if (requestBodyObj.TryGetPropertyValue("content", out var contentNode) && contentNode is JsonObject contentObj)
-                            {
-                                // Pick application/json or the first available content type
-                                if (contentObj.TryGetPropertyValue("application/json", out var appJson) && appJson is JsonObject appJsonObj && appJsonObj.TryGetPropertyValue("schema", out var schemaNode))
+                                // Handle $ref in requestBody
+                                if (requestBodyObj.TryGetPropertyValue("$ref", out var refNode) && refNode is JsonValue refVal)
                                 {
-                                    content = schemaNode;
+                                    var resolved = ResolveRef(doc, refVal.ToString());
+                                    if (resolved is JsonObject resolvedObj && resolvedObj.TryGetPropertyValue("content", out var resolvedContent))
+                                        content = resolvedContent;
                                 }
-                                else
+                                else if (requestBodyObj.TryGetPropertyValue("content", out var contentNode) && contentNode is JsonObject contentObj)
                                 {
-                                    // fallback: pick first schema if present
-                                    foreach (var ct in contentObj)
+                                    // Pick application/json or the first available content type
+                                    if (contentObj.TryGetPropertyValue("application/json", out var appJson) && appJson is JsonObject appJsonObj && appJsonObj.TryGetPropertyValue("schema", out var schemaNode))
                                     {
-                                        var value = ct.Value;
-                                        if (value is JsonObject ctObj && ctObj.TryGetPropertyValue("schema", out var s))
+                                        content = schemaNode;
+                                    }
+                                    else
+                                    {
+                                        // fallback: pick first schema if present
+                                        foreach (var ct in contentObj)
                                         {
-                                            content = s;
-                                            break;
+                                            var value = ct.Value;
+                                            if (value is JsonObject ctObj && ctObj.TryGetPropertyValue("schema", out var s))
+                                            {
+                                                content = s;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                    // Also resolve $ref in parameters (for body parameters)
-                    if (content == null && operationObj != null && operationObj.TryGetPropertyValue("parameters", out var parametersNode) && parametersNode is JsonArray parametersArr)
-                    {
-                        foreach (var param in parametersArr)
+                        // Also resolve $ref in parameters (for body parameters)
+                        if (content == null && operationObj != null && operationObj.TryGetPropertyValue("parameters", out var parametersNode) && parametersNode is JsonArray parametersArr)
                         {
-                            if (param is JsonObject paramObj && paramObj.TryGetPropertyValue("$ref", out var paramRefNode) && paramRefNode is JsonValue paramRefVal)
+                            foreach (var param in parametersArr)
                             {
-                                var resolvedParam = ResolveRef(doc, paramRefVal.ToString());
-                                if (resolvedParam is JsonObject resolvedParamObj && resolvedParamObj.TryGetPropertyValue("schema", out var paramSchema))
+                                if (param is JsonObject paramObj && paramObj.TryGetPropertyValue("$ref", out var paramRefNode) && paramRefNode is JsonValue paramRefVal)
+                                {
+                                    var resolvedParam = ResolveRef(doc, paramRefVal.ToString());
+                                    if (resolvedParam is JsonObject resolvedParamObj && resolvedParamObj.TryGetPropertyValue("schema", out var paramSchema))
+                                    {
+                                        // If schema has $ref, resolve it
+                                        if (paramSchema is JsonObject schemaObj && schemaObj.TryGetPropertyValue("$ref", out var schemaRefNode) && schemaRefNode is JsonValue schemaRefVal)
+                                        {
+                                            var resolvedSchema = ResolveRef(doc, schemaRefVal.ToString());
+                                            if (resolvedSchema != null)
+                                                content = resolvedSchema;
+                                        }
+                                        else
+                                        {
+                                            content = paramSchema;
+                                        }
+                                    }
+                                }
+                                else if (param is JsonObject paramObj2 && paramObj2.TryGetPropertyValue("schema", out var paramSchema2))
                                 {
                                     // If schema has $ref, resolve it
-                                    if (paramSchema is JsonObject schemaObj && schemaObj.TryGetPropertyValue("$ref", out var schemaRefNode) && schemaRefNode is JsonValue schemaRefVal)
+                                    if (paramSchema2 is JsonObject schemaObj2 && schemaObj2.TryGetPropertyValue("$ref", out var schemaRefNode2) && schemaRefNode2 is JsonValue schemaRefVal2)
                                     {
-                                        var resolvedSchema = ResolveRef(doc, schemaRefVal.ToString());
-                                        if (resolvedSchema != null)
-                                            content = resolvedSchema;
+                                        var resolvedSchema2 = ResolveRef(doc, schemaRefVal2.ToString());
+                                        if (resolvedSchema2 != null)
+                                            content = resolvedSchema2;
                                     }
                                     else
                                     {
-                                        content = paramSchema;
+                                        content = paramSchema2;
                                     }
                                 }
                             }
-                            else if (param is JsonObject paramObj2 && paramObj2.TryGetPropertyValue("schema", out var paramSchema2))
-                            {
-                                // If schema has $ref, resolve it
-                                if (paramSchema2 is JsonObject schemaObj2 && schemaObj2.TryGetPropertyValue("$ref", out var schemaRefNode2) && schemaRefNode2 is JsonValue schemaRefVal2)
-                                {
-                                    var resolvedSchema2 = ResolveRef(doc, schemaRefVal2.ToString());
-                                    if (resolvedSchema2 != null)
-                                        content = resolvedSchema2;
-                                }
-                                else
-                                {
-                                    content = paramSchema2;
-                                }
-                            }
                         }
+                        // Recursively resolve all $ref in content
+                        if (content != null)
+                        {
+                            content = ResolveRefsRecursive(doc, content);
+                            content = ExtractTypeAndEnumOnly(content);
+                        }
+                        operations.Add(new SwaggerOperation
+                        {
+                            HttpMethod = httpMethod,
+                            Url = url,
+                            Content = content,
+                            ApiVersion = apiVersion
+                        });
                     }
-                    // Recursively resolve all $ref in content
-                    if (content != null)
-                    {
-                        content = ResolveRefsRecursive(doc, content);
-                        content = ExtractTypeAndEnumOnly(content);
-                    }
-                    operations.Add(new SwaggerOperation
-                    {
-                        HttpMethod = httpMethod,
-                        Url = url,
-                        Content = content,
-                        ApiVersion = apiVersion
-                    });
                 }
+                return operations;
             }
-            return operations;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exception in ParseOperations: {ex}");
+                throw;
+            }
         }
     }
 }

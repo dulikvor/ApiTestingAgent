@@ -18,5 +18,21 @@ public class Session<TTransition>
         CurrentStep = step;
         CurrentTransition = transition;
     }
+
+    public bool StepResultExists(string stepResultKey)
+    {
+        return StepResult.ContainsKey(stepResultKey);
+    }
+
+    public bool RemoveStepResult(string stepResultKey)
+    {
+        if (StepResult.ContainsKey(stepResultKey))
+        {
+            StepResult.Remove(stepResultKey);
+            return true;
+        }
+
+        return false;
+    }
 }
 

@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.SemanticKernel.PromptTemplates.Handlebars;
-using Microsoft.SemanticKernel.PromptTemplates;
 using Microsoft.SemanticKernel;
 
 namespace ApiTestingAgent.Prompts

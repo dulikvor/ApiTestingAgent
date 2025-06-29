@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "properties": {
+    "isConfirmed": {
+      "type": "boolean",
+      "description": "Indicates whether the user has confirmed the selected command. If true, the command is ready for execution; if false, the user may need to make further adjustments."
+    },
+    "commandIsValid": {
+      "type": "boolean",
+      "description": "Indicates whether the command is valid. A command is valid only if all placeholders in the URI are filled, and the combination of HTTP method and URI matches a known command from the Detected Commands With Content context."
+    },
+    "userResponse": {
+      "type": "string",
+      "description": "A clear, user-facing message starting with '### 🛠️ Selected Command' and showing the full HTTP method, resolved request URI, and JSON content. If the command is invalid, the message must explain what is missing or incorrect and guide the user on how to fix it."
+    },
+    "httpMethod": {
+      "type": "string",
+      "description": "The HTTP method of the selected command (e.g., GET, POST, PUT, DELETE)."
+    },
+    "requestUri": {
+      "type": "string",
+      "description": "The fully resolved request URI, including the service domain selected during the domain selection step and all required placeholder values."
+    },
+    "content": {
+      "type": "string",
+      "description": "The JSON body of the selected command. If no content is needed, this should be an empty JSON object '{}'."
+    },
+    "commandSelected": {
+      "type": "boolean",
+      "description": "Indicates whether the user made any change in this iteration that affected the selected command, including changes to HTTP method, URI pattern, placeholder values, or request content."
+    }
+  },
+  "required": [
+    "commandIsValid",
+    "commandSelected",
+    "userResponse",
+    "httpMethod",
+    "requestUri",
+    "content"
+  ],
+  "x-userType": "ApiTestingAgent.Resources.Schemas.CommandSelectOutput, ApiTestingAgent"
+}
