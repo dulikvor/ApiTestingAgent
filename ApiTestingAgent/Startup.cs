@@ -46,6 +46,8 @@ namespace ApiTestingAgent
             services.AddSingleton<IApiTestService, ApiTestService>();
             services.AddSingleton<DomainSelectionState>();
             services.AddSingleton<RestDiscoveryState>();
+            services.AddSingleton<CommandSelectState>();
+            services.AddSingleton<CommandInvokeState>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

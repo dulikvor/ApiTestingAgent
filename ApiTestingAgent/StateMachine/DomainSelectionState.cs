@@ -47,11 +47,10 @@ namespace ApiTestingAgent.StateMachine
                 // If deserialization fails, retry
                 return (ApiTestStateTransitions.DomainSelect, true);
             }
+            
+            Console.WriteLine("DomainSelection (JSON):\n" + System.Text.Json.JsonSerializer.Serialize(domainSelection, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n\n");
 
-            // Print the isConfirmed flag to the console
-            Console.WriteLine($"isConfirmed: {domainSelection?.IsConfirmed}");
-
-            if(domainSelection?.DetectedDomain != null)
+            if (domainSelection?.DetectedDomain != null)
             {
                 session.AddStepResult("SelectedDomain", domainSelection.DetectedDomain);
             }
@@ -65,6 +64,7 @@ namespace ApiTestingAgent.StateMachine
                 return (ApiTestStateTransitions.RestDiscovery, true);
             }
 
+            Console.WriteLine($"ResponseToUser:\n{domainSelection!.UserResponse!}");
             await _streamReporter.ReportAsync(new List<ChatMessageContent> { originalMessage.CloneWithContent(domainSelection!.UserResponse!) });
 
             return (ApiTestStateTransitions.DomainSelect, false);

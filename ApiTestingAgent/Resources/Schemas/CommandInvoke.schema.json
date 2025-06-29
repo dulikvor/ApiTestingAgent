@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "properties": {
+    "analysis": {
+      "type": "string",
+      "description": "Full user-facing message, including all required sections."
+    },
+    "outcomeMatched": {
+      "type": "boolean",
+      "description": "True if the actual result matches the expected outcome."
+    },
+    "correctedUserMessage": {
+      "type": "string",
+      "description": "If expectations were not met and a content-only change would likely fix it, provide a revised natural-language user instruction to guide command selection."
+    },
+    "nextState": {
+      "type": "string",
+      "description": "The next state to transition to. One of: 'CommandSelect', 'ExpectedOutcome', or 'None'."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "A brief explanation of the logic and evidence leading to the nextState decision."
+    }
+  },
+  "required": [
+    "analysis",
+    "nextState",
+    "outcomeMatched",
+    "correctedUserMessage",
+    "reasoning"
+  ],
+  "x-userType": "ApiTestingAgent.Resources.Schemas.CommandInvokeOutput, ApiTestingAgent"
+}

@@ -1,0 +1,4 @@
+Detected Commands With Content:
+A list of known REST API operations discovered earlier, including their HTTP method, request URI, and full JSON payload structure.
+
+{{DetectedRestOperationsWithContent}}

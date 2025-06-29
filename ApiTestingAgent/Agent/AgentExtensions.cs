@@ -19,6 +19,7 @@ namespace ApiTestingAgent.Agent
             );
 
             builder.Services.AddServiceHttpClient<IGitHubRawContentCdnClient, GitHubRawContentCdnClient, GitHubRawContentCdnClientOptions>();
+            builder.Services.AddServiceHttpClient<IRestClient, RestClient>(ignoreServerCertificateValidation: true);
 
             builder.Services.AddOptions<GitHubRawContentCdnClientOptions>()
             .Bind(configuration.GetSection(nameof(ServiceConfiguration.GitHubRawContentCdnClient)))
@@ -26,6 +27,7 @@ namespace ApiTestingAgent.Agent
             .ValidateOnStart();
 
             builder.Plugins.AddFromType<SwaggerTools>("SwaggerTool");
+            builder.Plugins.AddFromType<RestTools>("RestTools");
 
             var kernel = builder.Build();
             services.AddChatCompletionAgent(configuration, kernel);

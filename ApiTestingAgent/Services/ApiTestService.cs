@@ -54,15 +54,18 @@ namespace ApiTestingAgent.Services
                 // Collect current user selections from session StepResult
                 var userSelections = new Dictionary<string, string>
                 {
-                    ["SelectedDomain"] = session.StepResult.TryGetValue("SelectedDomain", out var selectedDomain) ? selectedDomain?.ToString() ?? "none" : "none",
-                    ["DetectedRestOperations"] = session.StepResult.TryGetValue("DetectedRestOperations", out var detectedRestOps) ? detectedRestOps?.ToString() ?? "none" : "none",
-                    ["SelectedCommand"] = session.StepResult.TryGetValue("SelectedCommand", out var selectedCommand) ? selectedCommand?.ToString() ?? "none" : "none"
+                    ["SelectedDomain"] = session.StepResult.TryGetValue("SelectedDomain", out var selectedDomain) ? selectedDomain ?? "none" : "none",
+                    ["DetectedRestOperations"] = session.StepResult.TryGetValue("DetectedRestOperations", out var detectedRestOps) ? detectedRestOps ?? "none" : "none",
+                    ["SelectedCommand"] = session.StepResult.TryGetValue("SelectedCommand", out var selectedCommand) ? selectedCommand ?? "none" : "none",
+                    ["SelectedCommandResult"] = session.StepResult.TryGetValue("SelectedCommandResult", out var selectedCommandResult) ? selectedCommandResult ?? "none" : "none",
+                    ["CorrectedUserMessage"] = session.StepResult.TryGetValue("CorrectedUserMessage", out var correctedUserMessage) ? correctedUserMessage ?? "none" : "none"
                 };
 
                 // Remove any existing SessionContext prompt from chatHistory (system message containing SessionContext)
                 chatHistory.RemoveSystemMessagesContaining("*As Context for you*");
                 // Get the SessionContext prompt with user selections
                 var sessionContextPrompt = await _promptAndSchemaRegistry.GetPrompt("SessionContext", userSelections);
+                Console.WriteLine($"SessionContext:\n{sessionContextPrompt}\n\n");
                 chatHistory.Add(new ChatMessageContent(AuthorRole.System, sessionContextPrompt));
 
                 session.SetCurrentStep(stateContext.GetCurrentState(), transition);

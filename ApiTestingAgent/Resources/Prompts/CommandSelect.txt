@@ -1,0 +1,126 @@
+### 🧠 Command Selection Logic
+
+---
+
+#### 🎯 Goal:
+Determine the most appropriate REST API command to execute, based strictly on the user's explicit instructions and optionally using corrected guidance provided in context.
+
+---
+
+#### 📄 Context for - Detected Commands With Content:
+Only use commands detected during the **REST Discovery** step. These are available in the context labeled **Detected Commands With Content** and include full method, URI, and request content structure. Never invent or guess commands.
+
+Additional context may come from user selections:
+At the top of the prompt, look for information marked *As Context for you*, including:
+
+- Selected Domain
+- Selected Command (may be partially filled)
+- Corrected User Message For Command Select (if available)
+
+If **Corrected User Message For Command Select** is present, treat it as authoritative guidance to refine the command. Merge it with any existing selected command, maintaining URI/method and appending or updating content fields as needed.
+
+---
+
+#### ✅ User Consent (Confirmation)
+
+Set `isConfirmed = true` **only if** the user input explicitly confirms or approves the current command.
+
+Acceptable confirmations include phrases like:
+- "Yes"
+- "Looks good"
+- "Go ahead"
+- "Confirm"
+- "That's correct"
+- "Use this"
+
+If the user is modifying placeholders, refining content, or asking questions, treat this as construction — set `isConfirmed = false`.
+
+⚠️ `isConfirmed` is **independent** of `commandDiscoveryDetectedInCurrentIteration`. Both may be true in the same step.
+
+---
+
+#### 🧾 JSON Metadata (Returned to Caller)
+
+Respond with a JSON object matching this schema:  
+{{{output_schema}}}
+
+---
+
+#### 🔧 Behavior Guidelines
+
+- Only use commands from the **Detected Commands With Content** context.
+- Ensure the selected domain is applied to the URI.
+- A command is valid **only if**:
+  - All URI placeholders are filled
+  - The URI and method match a known discovered command
+  - The request content (if required) is valid JSON (or `{}` if explicitly empty)
+
+---
+
+#### 🧠 Merging with Corrected Instruction
+
+If a **Corrected User Message For Command Select** is present:
+- Treat it as a delta to apply to the selected command
+- Update placeholder values or JSON fields as instructed
+- Preserve existing structure; do not discard existing fields unless clearly instructed
+
+---
+
+#### 🔄 Detecting Changes (Set `commandDiscoveryDetectedInCurrentIteration = true` if):
+
+- HTTP method changed  
+- URI placeholders were filled or modified  
+- Request content was added or modified  
+
+Otherwise, set `commandDiscoveryDetectedInCurrentIteration = false`.
+
+---
+
+#### 🧭 Next Step (`userResponse`)
+
+Always render a clear Markdown block showing the current selected command.
+
+**🛠️ Selected Command**
+```http
+{HTTP_METHOD} https://{domain}/{filledUriPath}
+If the request requires content:
+
+{validRequestBody}
+If no content is required: skip the JSON block and set requestContent = null.
+
+🚫 If the command is invalid:
+Return commandIsValid = false
+
+Explain clearly what is missing:
+
+Example: "Missing value for {workspaceName}"
+
+Example: "No matching command found for PUT /.../tables/Perf"
+
+Prompt the user to supply:
+
+HTTP method
+
+Complete URI with values
+
+Request body if needed
+
+🛠️ If No Command Has Been Selected Yet
+Output:
+🛠️ Selected Command
+No command selected yet.
+
+🧭 Next Step:
+Please provide the HTTP method, full URI (with placeholder values filled), and a JSON body if required.
+
+Example:
+
+PUT /subscriptions/.../tables/{tableName}
+
+{}
+⚠️ Do Not Proceed If:
+No matching command found
+
+URI has unresolved placeholders
+
+Return commandIsValid = false and explain what’s needed to continue.

@@ -13,3 +13,6 @@ Selected Command:
 
 Selected Command Result:
 {{SelectedCommandResult}}
+
+Corrected User Message For Command Select:
+{{CorrectedUserMessage}}

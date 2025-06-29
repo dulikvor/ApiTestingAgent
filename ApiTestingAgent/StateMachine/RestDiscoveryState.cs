@@ -44,6 +44,8 @@ namespace ApiTestingAgent.StateMachine
                 return (ApiTestStateTransitions.RestDiscovery, true);
             }
 
+            Console.WriteLine("RestDiscovery (JSON):\n" + System.Text.Json.JsonSerializer.Serialize(restDiscovery, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n\n");
+
             if (restDiscovery?.RawSwaggerContent != null)
             {
                 session.AddStepResult("RawSwaggerContent", restDiscovery.RawSwaggerContent);
@@ -51,24 +53,37 @@ namespace ApiTestingAgent.StateMachine
 
             if (restDiscovery?.DetectedOperations?.Any() == true)
             {
-                var operationsString = FormatDetectedOperations(restDiscovery.DetectedOperations);
+                var (operationsString, operationsWithContentString) = FormatDetectedOperations(restDiscovery.DetectedOperations);
                 session.AddStepResult("DetectedRestOperations", operationsString);
+                session.AddStepResult("DetectedRestOperationsWithContent", operationsWithContentString);
             }
 
+            if (restDiscovery?.IsConfirmed == true && session.StepResultExists("DetectedRestOperations"))
+            {
+                var nextState = _stateFactory.Create<CommandInvokeState, ApiTestStateTransitions>();
+                context.SetState(nextState);
+                session.SetCurrentStep(context.GetCurrentState(), ApiTestStateTransitions.CommandSelect);
+                return (ApiTestStateTransitions.CommandInvocation, true);
+            }
+
+            Console.WriteLine($"ResponseToUser:\n{restDiscovery!.UserResponse!}");
             await _streamReporter.ReportAsync(new List<ChatMessageContent> { chatMessageContent.CloneWithContent(restDiscovery!.UserResponse!) });
 
             return (ApiTestStateTransitions.RestDiscovery, false); // Or another transition as appropriate
         }
 
-        private static string FormatDetectedOperations(List<object> detectedOperations)
+        private static (string, string) FormatDetectedOperations(List<object> detectedOperations)
         {
-            return string.Join("\n", detectedOperations.Select(op =>
+            var opsStripped = new List<string>();
+            var opsWithContent = new List<string>();
+            foreach (var op in detectedOperations)
             {
+                string? method = null;
+                string? path = null;
+                string? content = null;
+                string? apiVersion = null;
                 if (op is System.Text.Json.JsonElement elem && elem.ValueKind == System.Text.Json.JsonValueKind.Object)
                 {
-                    string? method = null;
-                    string? path = null;
-                    // Try both property name variants
                     if (elem.TryGetProperty("method", out var methodProp))
                         method = methodProp.GetString();
                     else if (elem.TryGetProperty("HttpMethod", out var methodProp2))
@@ -77,7 +92,19 @@ namespace ApiTestingAgent.StateMachine
                         path = pathProp.GetString();
                     else if (elem.TryGetProperty("Url", out var urlProp))
                         path = urlProp.GetString();
-                    return $"Operation method: {method}, path: {path}";
+                    if (elem.TryGetProperty("Content", out var contentProp))
+                        content = contentProp.ToString();
+                    if (elem.TryGetProperty("ApiVersion", out var apiVersionProp))
+                        apiVersion = apiVersionProp.GetString();
+                    // Add api-version as query param if available and not already present
+                    if (!string.IsNullOrEmpty(apiVersion) && !string.IsNullOrEmpty(path))
+                    {
+                        var separator = path.Contains("?") ? "&" : "?";
+                        if (!path.Contains("api-version="))
+                            path += $"{separator}api-version={apiVersion}";
+                    }
+                    opsStripped.Add($"Operation method: {method}, path: {path}");
+                    opsWithContent.Add(content != null ? $"Operation method: {method}, path: {path}, content: {content}" : $"Operation method: {method}, path: {path}");
                 }
                 else if (op is System.Collections.Generic.Dictionary<string, object> dict)
                 {
@@ -87,13 +114,27 @@ namespace ApiTestingAgent.StateMachine
                         methodObj = methodObj2;
                     if (pathObj == null && dict.TryGetValue("Url", out var pathObj2))
                         pathObj = pathObj2;
-                    return $"Operation method: {methodObj}, path: {pathObj}";
+                    if (dict.TryGetValue("Content", out var contentObj))
+                        content = contentObj?.ToString();
+                    if (dict.TryGetValue("ApiVersion", out var apiVersionObj))
+                        apiVersion = apiVersionObj?.ToString();
+                    // Add api-version as query param if available and not already present
+                    if (!string.IsNullOrEmpty(apiVersion) && pathObj is string pathStr && !string.IsNullOrEmpty(pathStr))
+                    {
+                        var separator = pathStr.Contains("?") ? "&" : "?";
+                        if (!pathStr.Contains("api-version="))
+                            pathObj = pathStr + $"{separator}api-version={apiVersion}";
+                    }
+                    opsStripped.Add($"Operation method: {methodObj}, path: {pathObj}");
+                    opsWithContent.Add(content != null ? $"Operation method: {methodObj}, path: {pathObj}, content: {content}" : $"Operation method: {methodObj}, path: {pathObj}");
                 }
                 else
                 {
-                    return op?.ToString() ?? string.Empty;
+                    opsStripped.Add(op?.ToString() ?? string.Empty);
+                    opsWithContent.Add(op?.ToString() ?? string.Empty);
                 }
-            }));
+            }
+            return (string.Join("\n", opsStripped), string.Join("\n", opsWithContent));
         }
     }
 }
