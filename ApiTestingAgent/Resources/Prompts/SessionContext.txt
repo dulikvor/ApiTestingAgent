@@ -4,9 +4,11 @@ Selections made by the user in previous steps:
 Selected Domain: 
 {{SelectedDomain}}
 
+Detected Api Versions and their respected swagger routes:
+{{DetectedSwaggerRoutes}}
+
 Detected Rest operations:
 {{DetectedRestoperations}}
-
 
 Selected Command:
 {{SelectedCommand}}

@@ -36,6 +36,7 @@ namespace ApiTestingAgent.StateMachine
             chatHistory.RemoveSystemMessagesContaining("Detected Commands With Content:");
             var swaggerDefinitionContextPrompt = await _promptAndSchemaRegistry.GetPrompt("SwaggerDefinition", detectedRestOperations);
             chatHistory.Add(new ChatMessageContent(AuthorRole.System, swaggerDefinitionContextPrompt));
+            Console.WriteLine("SwaggerDefinition (JSON):\n" + System.Text.Json.JsonSerializer.Serialize(swaggerDefinitionContextPrompt, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n\n");
 
             var prompt = await _promptAndSchemaRegistry.GetPrompt("CommandSelect");
             chatHistory.Add(new ChatMessageContent(AuthorRole.System, prompt));
@@ -46,6 +47,8 @@ namespace ApiTestingAgent.StateMachine
             if (messages.Count != 1)
                 throw new InvalidOperationException($"Expected a single response message, got {messages.Count}.");
             var originalMessage = messages[0];
+
+            Console.WriteLine($"chatMessageContent.Content: {originalMessage.Content}");
             CommandSelectOutput? commandSelect = null;
             try
             {

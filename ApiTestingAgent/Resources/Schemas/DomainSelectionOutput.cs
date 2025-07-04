@@ -12,6 +12,5 @@ public class DomainSelectionOutput
     public string? UserResponse { get; set; }
 
     [JsonPropertyName("isConfirmed")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsConfirmed { get; set; }
 }

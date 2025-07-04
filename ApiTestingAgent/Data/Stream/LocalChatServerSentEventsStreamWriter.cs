@@ -1,43 +1,35 @@
-using ApiTestingAgent.Contracts.Copilot;
 using Microsoft.SemanticKernel;
 using System.Text.Json;
 
 namespace ApiTestingAgent.Data.Stream;
 
-public class CopilotServerSentEventsStreamWriter : IResponseStreamWriter<CopilotServerSentEventsStreamWriter>, IStreamWriter
+public class LocalChatServerSentEventsStreamWriter : IResponseStreamWriter<LocalChatServerSentEventsStreamWriter>, IStreamWriter
 {
-    public CopilotServerSentEventsStreamWriter()
+    public LocalChatServerSentEventsStreamWriter()
     {
     }
 
     public void StartStream(HttpContext httpContext)
     {
         httpContext.Response.ContentType = "text/event-stream";
+        httpContext.Response.Headers.Add("Cache-Control", "no-cache");
+        httpContext.Response.Headers.Add("Connection", "keep-alive");
     }
 
     public async Task WriteToStreamAsync(HttpContext httpContext, IReadOnlyList<object> messages, object? eventType = null)
     {
-        CopilotEventType copilotEventType = CopilotEventType.Message;
-        if (eventType is CopilotEventType cet)
-        {
-            copilotEventType = cet;
-        }
-        else if (eventType is string s && Enum.TryParse<CopilotEventType>(s, true, out var parsed))
-        {
-            copilotEventType = parsed;
-        }
-        // else: fallback to default
-
         foreach (var message in messages)
         {
             if (message is ChatMessageContent chatMessage)
             {
-                // Use the new constructor to transform to CoPilotChatResponseMessage
-                var response = new CoPilotChatResponseMessage(chatMessage);
-                var serializedMessage = JsonSerializer.Serialize(response);
-                var messageString = copilotEventType == CopilotEventType.Message
-                    ? "data: " + serializedMessage + "\n\n"
-                    : "event: " + copilotEventType.ToSerializedString() + "\ndata: " + serializedMessage + "\n\n";
+                // For local chat, we'll send the expected message format
+                var localMessage = new
+                {
+                    message = chatMessage.Content,
+                    role = chatMessage.Role.ToString().ToLower()
+                };
+                var serializedMessage = JsonSerializer.Serialize(localMessage);
+                var messageString = serializedMessage + "\n\n";
                 await httpContext.Response.WriteAsync(messageString);
                 await httpContext.Response.Body.FlushAsync();
             }
@@ -54,7 +46,7 @@ public class CopilotServerSentEventsStreamWriter : IResponseStreamWriter<Copilot
 
     public async Task CompleteStream(HttpContext httpContext)
     {
-        var completionMessage = "data: [DONE]\n\n";
+        var completionMessage = "data: [DONE]";
         await httpContext.Response.WriteAsync(completionMessage);
         await httpContext.Response.Body.FlushAsync();
     }

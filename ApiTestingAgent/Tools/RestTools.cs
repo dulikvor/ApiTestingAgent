@@ -45,7 +45,11 @@ namespace ApiTestingAgent.Tools
             [Description("The URL of the REST API endpoint.")] string url,
             [Description("The body of the request, if applicable.")] string body)
         {
+            // Print tool arguments (excluding body/content)
+            Console.WriteLine($"RestTools.InvokeRestAsync arguments: method={method}, url={url}");
             var result = await _restClient.InvokeRest(method, url, null!, body);
+            // Print only the HTTP status code in the response
+            Console.WriteLine($"RestTools.InvokeRestAsync response HttpStatusCode: {result.HttpStatusCode}");
             return new RestResponse
             {
                 HttpStatusCode = result.HttpStatusCode,

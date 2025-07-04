@@ -19,7 +19,7 @@
     },
     "reasoning": {
       "type": "string",
-      "description": "A brief explanation of the logic and evidence leading to the nextState decision."
+      "description": "A brief explanation of the logic and evidence leading to current decision."
     }
   },
   "required": [

@@ -60,15 +60,15 @@ namespace ApiTestingAgent.Contracts.Copilot
 
         [JsonPropertyName("finish_reason")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        public string FinishReason { get; }
+        public string? FinishReason { get; set; }
 
         [JsonPropertyName("contentTokenLogProbabilities")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        public IReadOnlyList<ChatTokenLogProbabilityDetails> ContentTokenLogProbabilities { get; }
+        public IReadOnlyList<ChatTokenLogProbabilityDetails>? ContentTokenLogProbabilities { get; set; }
 
         [JsonPropertyName("refusalTokenLogProbabilities")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-        public IReadOnlyList<ChatTokenLogProbabilityDetails> RefusalTokenLogProbabilities { get; }
+        public IReadOnlyList<ChatTokenLogProbabilityDetails>? RefusalTokenLogProbabilities { get; set; }
     }
 
     public record UsageResponse

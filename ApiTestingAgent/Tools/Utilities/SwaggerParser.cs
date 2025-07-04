@@ -139,7 +139,7 @@ namespace ApiTestingAgent.Tools.Utitlities
                 if (doc == null) return operations;
 
                 // Try to get api-version from top-level info.version or x-ms-api-version
-                string apiVersion = null;
+                string? apiVersion = null;
                 if (doc["info"] is JsonObject infoObj)
                 {
                     if (infoObj.TryGetPropertyValue("version", out var versionNode) && versionNode is JsonValue versionVal)
@@ -257,6 +257,55 @@ namespace ApiTestingAgent.Tools.Utitlities
                 Console.WriteLine($"Exception in ParseOperations: {ex}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Parses a Swagger HTML index page and extracts a dictionary of API version names to their Swagger JSON routes.
+        /// </summary>
+        /// <param name="swaggerHtml">The HTML content returned from the /swagger endpoint.</param>
+        /// <returns>A dictionary mapping API version names to their Swagger JSON routes.</returns>
+        public static Dictionary<string, string> ParseApiVersionsFromSwaggerHtml(string swaggerHtml)
+        {
+            var result = new Dictionary<string, string>();
+            if (string.IsNullOrWhiteSpace(swaggerHtml))
+                return result;
+
+            // Look for: configObject = JSON.parse('...');
+            var marker = "configObject = JSON.parse('";
+            var startIdx = swaggerHtml.IndexOf(marker);
+            if (startIdx < 0)
+                return result;
+            startIdx += marker.Length;
+            var endIdx = swaggerHtml.IndexOf("')", startIdx);
+            if (endIdx < 0)
+                return result;
+            var jsonString = swaggerHtml.Substring(startIdx, endIdx - startIdx);
+
+            // Unescape the JSON string (it may contain escaped quotes, etc.)
+            jsonString = jsonString.Replace("\\'", "'").Replace("\\\"", "\"");
+            try
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(jsonString);
+                if (doc.RootElement.TryGetProperty("urls", out var urlsElement) && urlsElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var item in urlsElement.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("name", out var nameProp) && item.TryGetProperty("url", out var urlProp))
+                        {
+                            var name = nameProp.GetString() ?? string.Empty;
+                            var url = urlProp.GetString() ?? string.Empty;
+                            if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(url))
+                                result[name] = url;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to parse API versions from Swagger HTML: {ex.Message}");
+                throw;
+            }
+            return result;
         }
     }
 }

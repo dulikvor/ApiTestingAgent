@@ -4,7 +4,7 @@ namespace ApiTestingAgent.Resources.Schemas;
 
 public class CommandSelectOutput
 {
-    
+
     [JsonPropertyName("isConfirmed")]
     public bool IsConfirmed { get; set; }
 
@@ -29,4 +29,7 @@ public class CommandSelectOutput
 
     [JsonPropertyName("commandSelected")]
     public bool CommandSelected { get; set; }
+    
+    [JsonPropertyName("reasoning")]
+    public string? Reasoning { get; set; }
 }

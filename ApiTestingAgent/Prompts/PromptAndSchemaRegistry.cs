@@ -160,73 +160,81 @@ namespace ApiTestingAgent.Prompts
 
             // Get properties of the actual type
             var actualProperties = actualType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                                            .ToDictionary(p => p.Name.ToLower(), p => p.PropertyType);
+                                            .ToDictionary(p => p.Name.ToLower(), p => p);
 
             // Check if all schema properties exist in the actual type
             foreach (var schemaProperty in schemaProperties)
             {
-                if (!actualProperties.ContainsKey(schemaProperty.Key.ToLower()))
+                if (!actualProperties.TryGetValue(schemaProperty.Key.ToLower(), out var propertyInfo))
                 {
                     Console.WriteLine($"Missing property: {schemaProperty.Key}");
                     return false;
                 }
+                var actualPropertyType = propertyInfo.PropertyType;
 
-                // Verify the type of the property
+                // Handle Dictionary<string, string> for JSON Schema object with additionalProperties of type string
                 var expectedTypeName = schemaProperty.Value?["type"]?.ToString().ToLower() ?? string.Empty;
-                if (expectedTypeName != null)
+                if (expectedTypeName == "object" && schemaProperty.Value?["additionalProperties"]?["type"]?.ToString().ToLower() == "string")
                 {
-                    var actualPropertyType = actualProperties[schemaProperty.Key.ToLower()];
-
-                    // Check for array type compatibility
-                    if (expectedTypeName == "array")
+                    if ((actualPropertyType.IsGenericType && actualPropertyType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
+                        && actualPropertyType.GetGenericArguments()[0] == typeof(string)
+                        && actualPropertyType.GetGenericArguments()[1] == typeof(string))
                     {
-                        if (!actualPropertyType.IsArray &&
-                            !(actualPropertyType.IsGenericType && actualPropertyType.GetGenericTypeDefinition() == typeof(List<>)) &&
-                            !(typeof(System.Collections.IEnumerable).IsAssignableFrom(actualPropertyType) && actualPropertyType != typeof(string)))
-                        {
-                            Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: array, Actual: {actualType}");
-                            return false;
-                        }
+                        continue;
                     }
-                    else if (!actualPropertyType.Name.ToLower().Equals(expectedTypeName))
+                    Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: Dictionary<string, string>, Actual: {actualPropertyType}");
+                    return false;
+                }
+
+                // Check for array type compatibility
+                if (expectedTypeName == "array")
+                {
+                    if (!actualPropertyType.IsArray &&
+                        !(actualPropertyType.IsGenericType && actualPropertyType.GetGenericTypeDefinition() == typeof(List<>)) &&
+                        !(typeof(System.Collections.IEnumerable).IsAssignableFrom(actualPropertyType) && actualPropertyType != typeof(string)))
                     {
-                        // Special case: map C# Int32/Int64 to JSON Schema 'integer'
-                        if ((actualPropertyType == typeof(int) || actualPropertyType == typeof(long)) && expectedTypeName == "integer")
-                        {
-                            continue;
-                        }
-                        // Special case: map C# Int32/Int64 to JSON Schema 'int32'/'int64'
-                        if (actualPropertyType == typeof(int) && expectedTypeName == "int32")
-                        {
-                            continue;
-                        }
-                        if (actualPropertyType == typeof(long) && expectedTypeName == "int64")
-                        {
-                            continue;
-                        }
-                        // Check if the property is an enum or a nullable enum and has the JsonStringEnumConverter attribute
-                        if (actualPropertyType.IsEnum || (Nullable.GetUnderlyingType(actualPropertyType)?.IsEnum ?? false))
-                        {
-                            var enumType = actualPropertyType.IsEnum ? actualPropertyType : Nullable.GetUnderlyingType(actualPropertyType);
-                            var propertyInfo = actualType.GetProperty(schemaProperty.Key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                            var jsonConverterAttribute = propertyInfo?.GetCustomAttribute<JsonConverterAttribute>();
-
-                            if (jsonConverterAttribute?.ConverterType == typeof(JsonStringEnumConverter) && expectedTypeName == "string")
-                            {
-                                continue; // Enum or nullable enum with JsonStringEnumConverter is valid as a string
-                            }
-                        }
-
-                        // Debug: Print all custom attributes of the property type
-                        var customAttributes = actualPropertyType.GetCustomAttributes();
-                        foreach (var attribute in customAttributes)
-                        {
-                            Console.WriteLine($"Custom Attribute: {attribute.GetType().Name}");
-                        }
-
-                        Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: {expectedTypeName}, Actual: {actualType}");
+                        Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: array, Actual: {actualType}");
                         return false;
                     }
+                }
+                else if (!actualPropertyType.Name.ToLower().Equals(expectedTypeName))
+                {
+                    // Special case: map C# Int32/Int64 to JSON Schema 'integer'
+                    if ((actualPropertyType == typeof(int) || actualPropertyType == typeof(long)) && expectedTypeName == "integer")
+                    {
+                        continue;
+                    }
+                    // Special case: map C# Int32/Int64 to JSON Schema 'int32'/'int64'
+                    if (actualPropertyType == typeof(int) && expectedTypeName == "int32")
+                    {
+                        continue;
+                    }
+                    if (actualPropertyType == typeof(long) && expectedTypeName == "int64")
+                    {
+                        continue;
+                    }
+                    // Check if the property is an enum or a nullable enum and has the JsonStringEnumConverter attribute
+                    if (actualPropertyType.IsEnum || (Nullable.GetUnderlyingType(actualPropertyType)?.IsEnum ?? false))
+                    {
+                        var enumType = actualPropertyType.IsEnum ? actualPropertyType : Nullable.GetUnderlyingType(actualPropertyType);
+                        var enumPropertyInfo = actualType.GetProperty(schemaProperty.Key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                        var jsonConverterAttribute = enumPropertyInfo?.GetCustomAttribute<JsonConverterAttribute>();
+
+                        if (jsonConverterAttribute?.ConverterType == typeof(JsonStringEnumConverter) && expectedTypeName == "string")
+                        {
+                            continue; // Enum or nullable enum with JsonStringEnumConverter is valid as a string
+                        }
+                    }
+
+                    // Debug: Print all custom attributes of the property type
+                    var customAttributes = actualPropertyType.GetCustomAttributes();
+                    foreach (var attribute in customAttributes)
+                    {
+                        Console.WriteLine($"Custom Attribute: {attribute.GetType().Name}");
+                    }
+
+                    Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: {expectedTypeName}, Actual: {actualType}");
+                    return false;
                 }
             }
 
