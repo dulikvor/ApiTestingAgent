@@ -58,7 +58,8 @@ namespace ApiTestingAgent.Services
                     ["DetectedRestOperations"] = session.StepResult.TryGetValue("DetectedRestOperations", out var detectedRestOps) ? detectedRestOps ?? "none" : "none",
                     ["SelectedCommand"] = session.StepResult.TryGetValue("SelectedCommand", out var selectedCommand) ? selectedCommand ?? "none" : "none",
                     ["SelectedCommandResult"] = session.StepResult.TryGetValue("SelectedCommandResult", out var selectedCommandResult) ? selectedCommandResult ?? "none" : "none",
-                    ["CorrectedUserMessage"] = session.StepResult.TryGetValue("CorrectedUserMessage", out var correctedUserMessage) ? correctedUserMessage ?? "none" : "none"
+                    ["CorrectedUserMessage"] = session.StepResult.TryGetValue("CorrectedUserMessage", out var correctedUserMessage) ? correctedUserMessage ?? "none" : "none",
+                    ["DetectedSwaggerRoutes"] = session.StepResult.TryGetValue("DetectedSwaggerRoutes", out var detectedSwaggerRoutes) ? detectedSwaggerRoutes ?? "none" : "none"
                 };
 
                 // Remove any existing SessionContext prompt from chatHistory (system message containing SessionContext)
@@ -74,6 +75,9 @@ namespace ApiTestingAgent.Services
                 shouldProceed = isConcluded;
             }
             while (shouldProceed);
+
+            // Send end of stream message
+            await _streamReporter.CompleteStreamAsync();
         }
     }
 }

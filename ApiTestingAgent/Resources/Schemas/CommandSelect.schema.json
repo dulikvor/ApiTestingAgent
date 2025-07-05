@@ -28,6 +28,10 @@
     "commandSelected": {
       "type": "boolean",
       "description": "Indicates whether the user made any change in this iteration that affected the selected command, including changes to HTTP method, URI pattern, placeholder values, or request content."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "A brief explanation of the logic and evidence leading to current decision."
     }
   },
   "required": [
@@ -36,7 +40,8 @@
     "userResponse",
     "httpMethod",
     "requestUri",
-    "content"
+    "content",
+    "reasoning"
   ],
   "x-userType": "ApiTestingAgent.Resources.Schemas.CommandSelectOutput, ApiTestingAgent"
 }

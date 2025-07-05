@@ -31,7 +31,16 @@ namespace ApiTestingAgent.StateMachine
             var prompt = await _promptAndSchemaRegistry.GetPrompt("RestDiscovery");
             chatHistory.Add(new ChatMessageContent(AuthorRole.System, prompt));
 
+            // Ensure the context key exists before any tool call that will update it
+            var existingJson = ApiTestingAgent.Data.CallContext.GetData("SwaggerOperationsKey") as string;
+            if (string.IsNullOrEmpty(existingJson))
+            {
+                ApiTestingAgent.Data.CallContext.SetData("SwaggerOperationsKey", "[]");
+                Console.WriteLine("SwaggerOperationsKey initialized as empty array in context (from RestDiscoveryState, before tool call).");
+            }
             var chatMessageContent = await _chatCompletionAgent.PlanInvokeAsync(chatHistory, CancellationToken.None);
+            // Print the content of chatMessageContent
+            Console.WriteLine($"chatMessageContent.Content: {chatMessageContent.Content}");
             // Assume the planner result is a JSON string matching RestDiscoveryOutput
             RestDiscoveryOutput? restDiscovery = null;
             try
@@ -46,16 +55,18 @@ namespace ApiTestingAgent.StateMachine
 
             Console.WriteLine("RestDiscovery (JSON):\n" + System.Text.Json.JsonSerializer.Serialize(restDiscovery, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }) + "\n\n");
 
-            if (restDiscovery?.RawSwaggerContent != null)
-            {
-                session.AddStepResult("RawSwaggerContent", restDiscovery.RawSwaggerContent);
-            }
-
             if (restDiscovery?.DetectedOperations?.Any() == true)
             {
                 var (operationsString, operationsWithContentString) = FormatDetectedOperations(restDiscovery.DetectedOperations);
                 session.AddStepResult("DetectedRestOperations", operationsString);
                 session.AddStepResult("DetectedRestOperationsWithContent", operationsWithContentString);
+            }
+
+            // Handle detectedSwaggerRoutes if present
+            if (restDiscovery?.DetectedSwaggerRoutes?.Any() == true)
+            {
+                var routesString = FormatDetectedSwaggerRoutes(restDiscovery.DetectedSwaggerRoutes);
+                session.AddStepResult("DetectedSwaggerRoutes", routesString);
             }
 
             if (restDiscovery?.IsConfirmed == true && session.StepResultExists("DetectedRestOperations"))
@@ -74,28 +85,38 @@ namespace ApiTestingAgent.StateMachine
 
         private static (string, string) FormatDetectedOperations(List<object> detectedOperations)
         {
+            // Ignore detectedOperations, use the full operations list from the logical context
+            var operationsJson = ApiTestingAgent.Data.GlobalContext.GetData("SwaggerOperationsKey") as string;
+            // Debug: print the JSON retrieved from the context
+            Console.WriteLine("SwaggerOperationsKey from context: " + (operationsJson ?? "null"));
+            List<ApiTestingAgent.Tools.Utitlities.SwaggerOperation>? fullOperations = null;
+            if (!string.IsNullOrEmpty(operationsJson))
+            {
+                try
+                {
+                    fullOperations = System.Text.Json.JsonSerializer.Deserialize<List<ApiTestingAgent.Tools.Utitlities.SwaggerOperation>>(operationsJson);
+                    // Debug: print the deserialized operations
+                    Console.WriteLine("Deserialized operations from context:");
+                    foreach (var op in fullOperations!)
+                    {
+                        Console.WriteLine($"  Method: {op.HttpMethod}, Url: {op.Url}, Content: {(op.Content != null ? op.Content.ToJsonString() : "null")}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Failed to deserialize SwaggerOperationsKey: " + ex);
+                }
+            }
             var opsStripped = new List<string>();
             var opsWithContent = new List<string>();
-            foreach (var op in detectedOperations)
+            if (fullOperations != null)
             {
-                string? method = null;
-                string? path = null;
-                string? content = null;
-                string? apiVersion = null;
-                if (op is System.Text.Json.JsonElement elem && elem.ValueKind == System.Text.Json.JsonValueKind.Object)
+                foreach (var op in fullOperations)
                 {
-                    if (elem.TryGetProperty("method", out var methodProp))
-                        method = methodProp.GetString();
-                    else if (elem.TryGetProperty("HttpMethod", out var methodProp2))
-                        method = methodProp2.GetString();
-                    if (elem.TryGetProperty("path", out var pathProp))
-                        path = pathProp.GetString();
-                    else if (elem.TryGetProperty("Url", out var urlProp))
-                        path = urlProp.GetString();
-                    if (elem.TryGetProperty("Content", out var contentProp))
-                        content = contentProp.ToString();
-                    if (elem.TryGetProperty("ApiVersion", out var apiVersionProp))
-                        apiVersion = apiVersionProp.GetString();
+                    var method = op.HttpMethod;
+                    var path = op.Url;
+                    var apiVersion = op.ApiVersion;
+                    var content = op.Content?.ToJsonString();
                     // Add api-version as query param if available and not already present
                     if (!string.IsNullOrEmpty(apiVersion) && !string.IsNullOrEmpty(path))
                     {
@@ -106,35 +127,21 @@ namespace ApiTestingAgent.StateMachine
                     opsStripped.Add($"Operation method: {method}, path: {path}");
                     opsWithContent.Add(content != null ? $"Operation method: {method}, path: {path}, content: {content}" : $"Operation method: {method}, path: {path}");
                 }
-                else if (op is System.Collections.Generic.Dictionary<string, object> dict)
-                {
-                    dict.TryGetValue("method", out var methodObj);
-                    dict.TryGetValue("path", out var pathObj);
-                    if (methodObj == null && dict.TryGetValue("HttpMethod", out var methodObj2))
-                        methodObj = methodObj2;
-                    if (pathObj == null && dict.TryGetValue("Url", out var pathObj2))
-                        pathObj = pathObj2;
-                    if (dict.TryGetValue("Content", out var contentObj))
-                        content = contentObj?.ToString();
-                    if (dict.TryGetValue("ApiVersion", out var apiVersionObj))
-                        apiVersion = apiVersionObj?.ToString();
-                    // Add api-version as query param if available and not already present
-                    if (!string.IsNullOrEmpty(apiVersion) && pathObj is string pathStr && !string.IsNullOrEmpty(pathStr))
-                    {
-                        var separator = pathStr.Contains("?") ? "&" : "?";
-                        if (!pathStr.Contains("api-version="))
-                            pathObj = pathStr + $"{separator}api-version={apiVersion}";
-                    }
-                    opsStripped.Add($"Operation method: {methodObj}, path: {pathObj}");
-                    opsWithContent.Add(content != null ? $"Operation method: {methodObj}, path: {pathObj}, content: {content}" : $"Operation method: {methodObj}, path: {pathObj}");
-                }
-                else
-                {
-                    opsStripped.Add(op?.ToString() ?? string.Empty);
-                    opsWithContent.Add(op?.ToString() ?? string.Empty);
-                }
             }
-            return (string.Join("\n", opsStripped), string.Join("\n", opsWithContent));
+            var result = (string.Join("\n", opsStripped), string.Join("\n", opsWithContent));
+            // Print the returned operations with content
+            Console.WriteLine("Returned operations with content:\n" + result.Item2);
+            return result;
+        }
+
+        private static string FormatDetectedSwaggerRoutes(Dictionary<string, string> detectedSwaggerRoutes)
+        {
+            var lines = new List<string>();
+            foreach (var kvp in detectedSwaggerRoutes)
+            {
+                lines.Add($"API Version: {kvp.Key}, Route: {kvp.Value}");
+            }
+            return string.Join("\n", lines);
         }
     }
 }

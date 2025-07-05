@@ -5,10 +5,6 @@
       "type": "string",
       "description": "The formatted message to the user."
     },
-    "rawSwaggerContent": {
-      "type": "string",
-      "description": "JSON content returned from fetchSwagger tool, or null if not available."
-    },
     "detectedOperations": {
       "type": "array",
       "description": "List of parsed operations from restParser, or null if not available.",
@@ -16,11 +12,18 @@
         "type": "object"
       }
     },
+    "detectedSwaggerRoutes": {
+      "type": "object",
+      "description": "Dictionary of detected API versions mapped to their Swagger routes (from service-side discovery), or null if not applicable.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "isConfirmed": {
       "type": "boolean",
       "description": "True if user confirmed the operations, false otherwise."
     }
   },
-  "required": ["userResponse", "rawSwaggerContent", "detectedOperations", "isConfirmed"],
+  "required": ["userResponse", "detectedSwaggerRoutes", "detectedOperations", "isConfirmed"],
   "x-userType": "ApiTestingAgent.Resources.Schemas.RestDiscoveryOutput, ApiTestingAgent"
 }

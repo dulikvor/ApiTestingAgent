@@ -4,5 +4,6 @@
     {
         public GitHubAuthenticationClientOptions? GitHubAuthenticationClient { get; set; }
         public GitHubRawContentCdnClientOptions? GitHubRawContentCdnClient { get; set; }
+        public ChatConfiguration? ChatConfiguration { get; set; }
     }
 }

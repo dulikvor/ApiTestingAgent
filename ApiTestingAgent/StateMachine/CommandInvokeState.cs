@@ -49,6 +49,9 @@ namespace ApiTestingAgent.StateMachine
             if (commandInvoke?.NextState?.Equals(
                 ApiTestStateTransitions.CommandSelect.ToString(), StringComparison.OrdinalIgnoreCase) == true)
             {
+                Console.WriteLine($"ResponseToUser:\n{commandInvoke!.Analysis!}");
+                await _streamReporter.ReportAsync(new List<ChatMessageContent> { chatMessageContent.CloneWithContent(commandInvoke!.Analysis!) });
+                
                 var nextState = _stateFactory.Create<CommandSelectState, ApiTestStateTransitions>();
                 context.SetState(nextState);
                 session.SetCurrentStep(context.GetCurrentState(), ApiTestStateTransitions.CommandSelect);

@@ -17,7 +17,10 @@ namespace ApiTestingAgent.Http
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var resolvedToken = await _tokenCreator(_options.Audience, _options.ApiKey);
+            // Ensure _options.Audience and _options.ApiKey are not null
+            var audience = _options.Audience ?? string.Empty;
+            var apiKey = _options.ApiKey ?? string.Empty;
+            var resolvedToken = await _tokenCreator(audience, apiKey);
             request.Headers.Authorization = new AuthenticationHeaderValue(resolvedToken.Schema, resolvedToken.Token);
 
             return await base.SendAsync(request, cancellationToken);
