@@ -7,6 +7,7 @@
         RawContentGet,
         RestCompile,
         CommandSelect,
+        ExecutionPlanSelect,
         ExpectedOutcome,
         CommandInvocation,
         CommandInvocationAnalysis,

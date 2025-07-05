@@ -12,8 +12,8 @@ public class LocalChatServerSentEventsStreamWriter : IResponseStreamWriter<Local
     public void StartStream(HttpContext httpContext)
     {
         httpContext.Response.ContentType = "text/event-stream";
-        httpContext.Response.Headers.Add("Cache-Control", "no-cache");
-        httpContext.Response.Headers.Add("Connection", "keep-alive");
+        httpContext.Response.Headers["Cache-Control"] = "no-cache";
+        httpContext.Response.Headers["Connection"] = "keep-alive";
     }
 
     public async Task WriteToStreamAsync(HttpContext httpContext, IReadOnlyList<object> messages, object? eventType = null)

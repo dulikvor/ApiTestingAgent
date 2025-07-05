@@ -186,6 +186,16 @@ namespace ApiTestingAgent.Prompts
                     return false;
                 }
 
+                // Handle custom object types - if schema type is "object" with properties, allow custom classes
+                if (expectedTypeName == "object" && schemaProperty.Value?["properties"] != null)
+                {
+                    // Allow any class type for complex objects with defined properties
+                    if (actualPropertyType.IsClass || actualPropertyType.IsValueType)
+                    {
+                        continue;
+                    }
+                }
+
                 // Check for array type compatibility
                 if (expectedTypeName == "array")
                 {
@@ -199,6 +209,22 @@ namespace ApiTestingAgent.Prompts
                 }
                 else if (!actualPropertyType.Name.ToLower().Equals(expectedTypeName))
                 {
+                    // Handle nullable types
+                    var underlyingType = Nullable.GetUnderlyingType(actualPropertyType);
+                    if (underlyingType != null)
+                    {
+                        // For nullable types, check the underlying type
+                        if (underlyingType.Name.ToLower().Equals(expectedTypeName))
+                        {
+                            continue;
+                        }
+                        // Special case: map nullable C# Int32/Int64 to JSON Schema 'integer'
+                        if ((underlyingType == typeof(int) || underlyingType == typeof(long)) && expectedTypeName == "integer")
+                        {
+                            continue;
+                        }
+                    }
+                    
                     // Special case: map C# Int32/Int64 to JSON Schema 'integer'
                     if ((actualPropertyType == typeof(int) || actualPropertyType == typeof(long)) && expectedTypeName == "integer")
                     {
@@ -233,7 +259,7 @@ namespace ApiTestingAgent.Prompts
                         Console.WriteLine($"Custom Attribute: {attribute.GetType().Name}");
                     }
 
-                    Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: {expectedTypeName}, Actual: {actualType}");
+                    Console.WriteLine($"Type mismatch for property: {schemaProperty.Key}. Expected: {expectedTypeName}, Actual: {actualPropertyType}");
                     return false;
                 }
             }

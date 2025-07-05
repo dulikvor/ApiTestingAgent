@@ -91,6 +91,7 @@ namespace ApiTestingAgent
             services.AddSingleton<DomainSelectionState>();
             services.AddSingleton<RestDiscoveryState>();
             services.AddSingleton<CommandSelectState>();
+            services.AddSingleton<ExecutionPlanState>();
             services.AddSingleton<CommandInvokeState>();
         }
 
@@ -111,7 +112,7 @@ namespace ApiTestingAgent
                 endpoints.MapControllers();
             });
         }
-        
+
         private void ConfigurationBinding(IServiceCollection services)
         {
             services.AddOptions<GitHubAuthenticationClientOptions>()

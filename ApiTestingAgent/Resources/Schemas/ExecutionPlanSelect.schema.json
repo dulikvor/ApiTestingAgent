@@ -1,0 +1,78 @@
+{
+  "type": "object",
+  "properties": {
+    "updatedPlan": {
+      "type": "array",
+      "description": "The updated execution plan with all steps.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stepNumber": {
+            "type": "integer",
+            "description": "The step number in the execution plan."
+          },
+          "method": {
+            "type": "string",
+            "description": "The HTTP method (GET, POST, PUT, DELETE, etc.)."
+          },
+          "url": {
+            "type": "string",
+            "description": "The full URL for the API call."
+          },
+          "body": {
+            "type": "object",
+            "description": "Optional request body for the API call."
+          },
+          "expectation": {
+            "type": "object",
+            "description": "Optional expectation for the API response.",
+            "properties": {
+              "expectedStatusCode": {
+                "type": "integer",
+                "description": "The expected HTTP status code."
+              },
+              "expectedContent": {
+                "type": "object",
+                "description": "The expected response content structure."
+              }
+            }
+          }
+        },
+        "required": ["stepNumber", "method", "url"]
+      }
+    },
+    "changes": {
+      "type": "array",
+      "description": "List of changes made to the execution plan.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "changeType": {
+            "type": "string",
+            "enum": ["added", "updated", "removed"],
+            "description": "The type of change made to the plan."
+          },
+          "stepNumber": {
+            "type": "integer",
+            "description": "Position after all removals are processed."
+          },
+          "description": {
+            "type": "string",
+            "description": "Summary of the change made."
+          }
+        },
+        "required": ["changeType", "stepNumber", "description"]
+      }
+    },
+    "isConfirmed": {
+      "type": "boolean",
+      "description": "Whether the user has confirmed the execution plan and wants to proceed with execution."
+    },
+    "userResponse": {
+      "type": "string",
+      "description": "The formatted response message to display to the user, showing the current execution plan."
+    }
+  },
+  "required": ["updatedPlan", "changes", "isConfirmed", "userResponse"],
+  "x-userType": "ApiTestingAgent.Resources.Schemas.ExecutionPlanSelectOutput, ApiTestingAgent"
+}
