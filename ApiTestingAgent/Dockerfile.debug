@@ -1,0 +1,37 @@
+# Debug Dockerfile for development and debugging
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+WORKDIR /src
+
+# Install debugger and procps for process management
+RUN apt-get update && apt-get install -y curl procps && \
+    curl -sSL https://aka.ms/getvsdbgsh | bash /dev/stdin -v latest -l /vsdbg
+
+# Copy project files
+COPY . .
+
+# Clear NuGet cache and ensure clean configuration
+RUN dotnet nuget locals all --clear && \
+    rm -rf /root/.nuget/NuGet/NuGet.Config && \
+    mkdir -p /root/.nuget/NuGet && \
+    echo '<?xml version="1.0" encoding="utf-8"?>' > /root/.nuget/NuGet/NuGet.Config && \
+    echo '<configuration>' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '  <packageSources>' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '    <clear />' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '  </packageSources>' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '  <fallbackPackageFolders>' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '    <clear />' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '  </fallbackPackageFolders>' >> /root/.nuget/NuGet/NuGet.Config && \
+    echo '</configuration>' >> /root/.nuget/NuGet/NuGet.Config
+
+# Restore packages
+RUN dotnet restore --verbosity minimal --no-cache
+
+EXPOSE 5991
+EXPOSE 4024
+
+ENV ASPNETCORE_URLS=http://+:5991
+ENV ASPNETCORE_ENVIRONMENT=Development
+
+# Use dotnet watch for hot reload during development
+ENTRYPOINT ["dotnet", "watch", "run"]

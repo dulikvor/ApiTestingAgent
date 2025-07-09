@@ -30,10 +30,10 @@ namespace ApiTestingAgent.Services
 
         public async Task InvokeNext(HttpContext httpContext, CoPilotChatRequestMessage coPilotChatRequestMessage)
         {
-            
+            _streamReporter.StartStream(httpContext);
             var session = SessionStore<Session<ApiTestStateTransitions>, ApiTestStateTransitions>.GetSessions((string)CallContext.GetData("UserNameKey")!);
 
-            ApiTestStateTransitions transition = default;
+            ApiTestStateTransitions transition;
             StateContext<ApiTestStateTransitions> stateContext;
             if (session.CurrentStep != null)
             {
@@ -46,9 +46,20 @@ namespace ApiTestingAgent.Services
                 transition = ApiTestStateTransitions.DomainSelect;
             }
 
-            var chatHistory = new ChatHistory();
-            chatHistory.AddCoPilotChatRequestMessages(coPilotChatRequestMessage);
-            bool shouldProceed = false;
+            var chatHistory = await Agent.ChatHistoryExtensions.CreateAndSummarizeAsync(
+                coPilotChatRequestMessage, 
+                _promptAndSchemaRegistry);
+            
+            // Print chat history after summarization
+            Console.WriteLine("=== Chat History After Summarization ===");
+            foreach (var message in chatHistory)
+            {
+                Console.WriteLine($"{message.Role}: {message.Content}");
+                Console.WriteLine("---");
+            }
+            Console.WriteLine("=== End Chat History ===\n");
+            
+            bool shouldProceed;
             do
             {
                 // Collect current user selections from session StepResult

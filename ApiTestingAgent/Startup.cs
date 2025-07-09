@@ -32,7 +32,7 @@ namespace ApiTestingAgent
                 services.AddCors(options =>
                 {
                     options.AddDefaultPolicy(builder => builder
-                        .WithOrigins("http://localhost:3001")
+                        .WithOrigins("http://localhost:3000", "http://host.docker.internal:3000")
                         .AllowAnyMethod()
                         .AllowAnyHeader());
                 });
@@ -122,6 +122,11 @@ namespace ApiTestingAgent
 
             services.AddOptions<ChatConfiguration>()
                 .Bind(_configuration.GetSection(nameof(ServiceConfiguration.ChatConfiguration)))
+                .ValidateDataAnnotations()
+                .ValidateOnStart();
+
+            services.AddOptions<FeaturesConfiguration>()
+                .Bind(_configuration.GetSection(nameof(ServiceConfiguration.Features)))
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
         }

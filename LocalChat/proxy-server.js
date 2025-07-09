@@ -14,7 +14,7 @@ app.use(cors({
 
 // Proxy middleware to forward requests to your HTTPS agent
 const proxyOptions = {
-  target: 'https://localhost:5991',
+  target: 'http://localhost:5991',
   changeOrigin: true,
   secure: false, // Allow self-signed certificates
   logLevel: 'debug'
@@ -24,5 +24,5 @@ app.use('/api', createProxyMiddleware(proxyOptions));
 
 app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
-  console.log(`Forwarding requests to https://localhost:5991`);
+  console.log(`Forwarding requests to http://localhost:5991`);
 });

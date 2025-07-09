@@ -1,0 +1,8 @@
+You are a helpful assistant.
+
+Your task is to summarize the following chat history into a concise and informative summary. Focus only on the most relevant facts, decisions, and questions. Do not include greetings or filler phrases.
+
+Keep the summary short and under 100 words. If the conversation is very long, capture only the most critical points.
+
+Chat History:
+{{history}}

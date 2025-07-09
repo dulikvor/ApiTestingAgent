@@ -14,6 +14,7 @@ public class LocalChatServerSentEventsStreamWriter : IResponseStreamWriter<Local
         httpContext.Response.ContentType = "text/event-stream";
         httpContext.Response.Headers["Cache-Control"] = "no-cache";
         httpContext.Response.Headers["Connection"] = "keep-alive";
+        httpContext.Response.Headers["X-Accel-Buffering"] = "no";
     }
 
     public async Task WriteToStreamAsync(HttpContext httpContext, IReadOnlyList<object> messages, object? eventType = null)
@@ -42,6 +43,13 @@ public class LocalChatServerSentEventsStreamWriter : IResponseStreamWriter<Local
                 await httpContext.Response.Body.FlushAsync();
             }
         }
+    }
+
+    public async Task WriteTextToStreamAsync(HttpContext httpContext, string message)
+    {
+        var eventString = "event: text\ndata: " + message + "\n\n";
+        await httpContext.Response.WriteAsync(eventString);
+        await httpContext.Response.Body.FlushAsync();
     }
 
     public async Task CompleteStream(HttpContext httpContext)

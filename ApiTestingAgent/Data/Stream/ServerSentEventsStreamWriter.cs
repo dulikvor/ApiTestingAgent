@@ -58,4 +58,10 @@ public class CopilotServerSentEventsStreamWriter : IResponseStreamWriter<Copilot
         await httpContext.Response.WriteAsync(completionMessage);
         await httpContext.Response.Body.FlushAsync();
     }
+
+    // New overload for sending a plain text event
+    public Task WriteTextToStreamAsync(HttpContext httpContext, string message)
+    {
+        throw new NotImplementedException();
+    }
 }

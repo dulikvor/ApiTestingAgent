@@ -1,0 +1,32 @@
+services:
+  apitestingagent:
+    build:
+      context: ./ApiTestingAgent
+      dockerfile: Dockerfile
+    ports:
+      - "5991:5991"
+      - "4024:4024"  # Debug port
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - AzureOpenAI__ApiKey=
+      - DOTNET_USE_POLLING_FILE_WATCHER=true
+      - NUGET_FALLBACK_PACKAGES=/root/.nuget/fallbackpackages
+    restart: unless-stopped
+    volumes:
+      - .:/src:cached  # Mount source code for live reload during debugging
+    networks:
+      - apitesting-network
+
+  localchat:
+    build:
+      context: ./LocalChat
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - apitesting-network
+
+networks:
+  apitesting-network:
+    driver: bridge

@@ -28,6 +28,15 @@ namespace ApiTestingAgent.StateMachine
             ApiTestStateTransitions transition,
             ChatHistory chatHistory)
         {
+            var detectedRestOperations = new Dictionary<string, string>
+            {
+                ["DetectedRestOperationsWithContent"] = session.StepResult.TryGetValue("DetectedRestOperationsWithContent", out var selectedDomain) ? selectedDomain?.ToString() ?? "none" : "none",
+            };
+            chatHistory.RemoveSystemMessagesContaining("Detected Commands With Content:");
+            var swaggerDefinitionContextPrompt = await _promptAndSchemaRegistry.GetPrompt("SwaggerDefinition", detectedRestOperations);
+            chatHistory.Add(new ChatMessageContent(AuthorRole.System, swaggerDefinitionContextPrompt));
+
+            chatHistory.RemoveSystemMessagesContaining("You are a **REST Execution Planner Agent**. Your job is to:");
             var prompt = await _promptAndSchemaRegistry.GetPrompt("ExecutionPlanSelect");
             chatHistory.Add(new ChatMessageContent(AuthorRole.System, prompt));
 

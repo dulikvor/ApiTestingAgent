@@ -18,6 +18,12 @@ namespace ApiTestingAgent.Data.Stream
             await _streamWriter.WriteToStreamAsync(context!, objectList);
         }
 
+        public void StartStream(HttpContext? httpContext = null)
+        {
+            var context = httpContext ?? CallContext.GetData("HttpContext") as HttpContext;
+            _streamWriter.StartStream(context!);
+        }
+
         public async Task CompleteStreamAsync(HttpContext? httpContext = null)
         {
             var context = httpContext ?? CallContext.GetData("HttpContext") as HttpContext;

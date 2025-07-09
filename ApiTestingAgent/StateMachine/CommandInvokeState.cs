@@ -1,10 +1,12 @@
 using ApiTestingAgent.Agent;
 using ApiTestingAgent.Contracts.SemanticKernel;
+using ApiTestingAgent.Data;
 using ApiTestingAgent.Data.Stream;
 using ApiTestingAgent.Prompts;
 using ApiTestingAgent.Resources.Schemas;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using System.Text.Json;
 
 namespace ApiTestingAgent.StateMachine
 {
@@ -36,10 +38,12 @@ namespace ApiTestingAgent.StateMachine
             CommandInvokeOutput? commandInvoke = null;
             try
             {
-                commandInvoke = System.Text.Json.JsonSerializer.Deserialize<CommandInvokeOutput>(chatMessageContent.Content!);
+                // Use the JsonSerializerExtensions to clean and deserialize
+                commandInvoke = JsonSerializerExtensions.DeserializeClean<CommandInvokeOutput>(chatMessageContent.Content!);
             }
             catch
             {
+                Console.WriteLine("CommandInvoke (Raw):\n" + chatMessageContent.Content!+ "\n\n");
                 // If deserialization fails, retry
                 return (ApiTestStateTransitions.CommandInvocation, true);
             }
@@ -52,20 +56,15 @@ namespace ApiTestingAgent.StateMachine
                 session.AddStepResult("CorrectedUserMessage", commandInvoke.CorrectedUserMessage);
             }
 
-            // Always report the analysis to the user
-            Console.WriteLine($"ResponseToUser:\n{commandInvoke!.Analysis!}");
-            await _streamReporter.ReportAsync(new List<ChatMessageContent> { chatMessageContent.CloneWithContent(commandInvoke!.Analysis!) });
-
             // Handle state transitions based on nextState
             // Handle state transitions based on the response
             var (nextTransition, shouldTransition) = DetermineNextTransition(context, session, commandInvoke);
-            
             if (shouldTransition)
             {
                 return (nextTransition, true);
             }
 
-            // Report response to user
+            // Always report the analysis to the user
             Console.WriteLine($"ResponseToUser:\n{commandInvoke!.Analysis!}");
             await _streamReporter.ReportAsync(new List<ChatMessageContent> { chatMessageContent.CloneWithContent(commandInvoke!.Analysis!) });
 
@@ -81,7 +80,6 @@ namespace ApiTestingAgent.StateMachine
             {
                 "COMMANDSELECT" => ApiTestStateTransitions.CommandSelect,
                 "EXECUTIONPLANSELECT" => ApiTestStateTransitions.ExecutionPlanSelect,
-                "EXPECTEDOUTCOME" => ApiTestStateTransitions.ExpectedOutcome,
                 "COMMANDINVOCATION" => ApiTestStateTransitions.CommandInvocation,
                 "DOMAINSELECT" => ApiTestStateTransitions.DomainSelect,
                 "RESTDISCOVERY" => ApiTestStateTransitions.RestDiscovery,
@@ -116,12 +114,6 @@ namespace ApiTestingAgent.StateMachine
                     context.SetState(executionPlanState);
                     session.SetCurrentStep(context.GetCurrentState(), ApiTestStateTransitions.ExecutionPlanSelect);
                     return (ApiTestStateTransitions.ExecutionPlanSelect, true);
-
-                case ApiTestStateTransitions.ExpectedOutcome:
-                    // Transition to ExpectedOutcome state (if implemented)
-                    // For now, stay in current state
-                    return (ApiTestStateTransitions.CommandInvocation, false);
-
                 case null:
                 default: // Includes any unrecognized values
                     Console.WriteLine($"Unknown or unhandled NextState: {commandInvoke.NextState}");

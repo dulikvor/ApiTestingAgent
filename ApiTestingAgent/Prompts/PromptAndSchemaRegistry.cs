@@ -10,6 +10,7 @@ namespace ApiTestingAgent.Prompts
     {
         private readonly Dictionary<string, string> _prompts = new();
         private readonly Dictionary<string, (string schema, Type userType)> _schemas = new();
+        private readonly Dictionary<string, KernelFunction> _semanticFunctions = new();
         private readonly HandlebarsPromptTemplateFactory _templateFactory = new HandlebarsPromptTemplateFactory();
         private readonly Kernel _kernel;
 
@@ -284,5 +285,85 @@ namespace ApiTestingAgent.Prompts
 
         public IEnumerable<string> RegisteredPromptKeys => _prompts.Keys;
         public IEnumerable<string> RegisteredSchemaKeys => _schemas.Keys;
+
+        // Allows overriding an existing prompt at runtime (for development/testing only)
+        public void OverridePrompt(string key, string newPrompt)
+        {
+            var normKey = NormalizeKey(key);
+            if (!_prompts.ContainsKey(normKey))
+                throw new KeyNotFoundException($"Prompt not found: {key}");
+            _prompts[normKey] = newPrompt;
+        }
+
+        /// <summary>
+        /// Creates a semantic function from a registered prompt with simple token and temperature settings.
+        /// Uses caching to avoid recreating the same function multiple times.
+        /// </summary>
+        /// <param name="key">The prompt key to create the function from</param>
+        /// <param name="maxTokens">Maximum tokens for the response</param>
+        /// <param name="temperature">Temperature setting for randomness (0.0 to 1.0)</param>
+        /// <returns>A KernelFunction that can be invoked</returns>
+        public KernelFunction CreateSemanticFunction(string key, int maxTokens = 500, double temperature = 0.5)
+        {
+            var normKey = NormalizeKey(key);
+            
+            // Create a cache key that includes settings to ensure uniqueness
+            var cacheKey = $"{normKey}_{maxTokens}_{temperature}";
+            
+            // Return cached function if it exists
+            if (_semanticFunctions.TryGetValue(cacheKey, out var cachedFunction))
+            {
+                return cachedFunction;
+            }
+            
+            if (!_prompts.TryGetValue(normKey, out var prompt))
+                throw new KeyNotFoundException($"Prompt not found: {key}");
+
+            // Create execution settings with simplified approach
+            var executionSettings = new PromptExecutionSettings
+            {
+                ExtensionData = new Dictionary<string, object>
+                {
+                    { "max_tokens", maxTokens },
+                    { "temperature", temperature }
+                }
+            };
+
+            // Create function using Handlebars template factory
+            var promptTemplateConfig = new PromptTemplateConfig
+            {
+                Template = prompt,
+                TemplateFormat = "handlebars",
+                Name = normKey,
+                ExecutionSettings = new Dictionary<string, PromptExecutionSettings> 
+                { 
+                    { "default", executionSettings } 
+                }
+            };
+
+            var function = _kernel.CreateFunctionFromPrompt(promptTemplateConfig, _templateFactory);
+            
+            // Cache the function for future use
+            _semanticFunctions[cacheKey] = function;
+            
+            return function;
+        }
+
+        /// <summary>
+        /// Gets a previously created semantic function by key.
+        /// Returns the first cached function for the given prompt key.
+        /// </summary>
+        /// <param name="key">The prompt key to search for</param>
+        /// <returns>The cached KernelFunction if found, null otherwise</returns>
+        public KernelFunction? GetSemanticFunction(string key)
+        {
+            var normKey = NormalizeKey(key);
+            
+            // Find the first cached function that starts with the normalized key
+            var cachedEntry = _semanticFunctions.FirstOrDefault(kvp => 
+                kvp.Key == normKey || kvp.Key.StartsWith($"{normKey}_"));
+            
+            return cachedEntry.Key != null ? cachedEntry.Value : null;
+        }
     }
 }

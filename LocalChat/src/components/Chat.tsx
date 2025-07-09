@@ -1,7 +1,8 @@
-import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './Chat.css';
+// @ts-ignore
+import ChatInput from '../../components/ChatInput.jsx';
 
 interface Message {
   id: string;
@@ -10,20 +11,13 @@ interface Message {
   timestamp: Date;
 }
 
-interface ChatResponse {
-  message: string;
-  role: string;
-}
-
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isServerProcessing, setIsServerProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Your service endpoint
-  const API_ENDPOINT = 'https://localhost:5991';
+  const API_ENDPOINT = 'http://localhost:5991';
 
   // Log when component loads
   console.log('Chat component loaded. API endpoint:', API_ENDPOINT);
@@ -36,29 +30,27 @@ const Chat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const sendMessage = async () => {
+  const sendMessage = async (content: string) => {
     console.log('=== SEND MESSAGE STARTED ===');
-    console.log('Input value:', inputValue);
+    console.log('Input value:', content);
     console.log('Is loading:', isLoading);
     
-    if (!inputValue.trim() || isLoading) {
+    if (!content.trim() || isLoading) {
       console.log('Returning early - empty input or loading');
       return;
     }
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: inputValue.trim(),
+      content: content.trim(),
       role: 'user',
       timestamp: new Date()
     };
 
     console.log('Created user message:', userMessage);
     setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
     setIsLoading(true);
-    setIsServerProcessing(true); // Server is now processing
-    console.log('UI state updated, starting API call...');
+    console.log('UI state updated, starting SSE connection...');
 
     try {
       // Get current conversation history
@@ -72,140 +64,164 @@ const Chat: React.FC = () => {
         }))
       };
 
-      const requestHeaders = {
-        'Content-Type': 'application/json',
-        'X-App-Name': 'standalone-chat', // Required for server authentication
-        // Add any authentication headers if needed
-        // 'Authorization': 'Bearer your-token',
-      };
-
       // Log the message structure being sent to the agent
-      console.log('Sending message to agent:', {
+      console.log('Sending message to agent via SSE:', {
         endpoint: `${API_ENDPOINT}/nextEvent`,
         method: 'POST',
-        headers: requestHeaders,
         payload: requestPayload,
         timestamp: new Date().toISOString()
       });
 
-      // Adjust this request format based on your service's API
-      const response = await axios.post<ChatResponse>(`${API_ENDPOINT}/nextEvent`, requestPayload, {
-        headers: requestHeaders,
-        timeout: 600000, // 10 minute timeout
+      // First, send the POST request to initiate the conversation
+      const response = await fetch(`${API_ENDPOINT}/nextEvent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-App-Name': 'standalone-chat',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify(requestPayload),
       });
 
-      // Log the response received from the agent
-      console.log('Response received from agent:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data,
-        timestamp: new Date().toISOString()
-      });
-
-      // Handle combined response with message and [DONE] signal
-      const responseData: any = response.data;
-      
-      // Check if this is a combined SSE-style response
-      if (typeof responseData === 'string') {
-        console.log('Processing SSE-style response:', responseData);
-        const lines = responseData.split('\n');
-        console.log('Split into lines:', lines);
-        
-        let messageProcessed = false;
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          console.log('Processing line:', trimmedLine);
-          
-          if (trimmedLine === 'data: [DONE]') {
-            console.log('🏁 End of stream detected - server is done sending messages');
-            setIsServerProcessing(false);
-            continue; // Skip this line, don't process as message
-          }
-          
-          // Handle lines that start with "data: " 
-          if (trimmedLine.startsWith('data: ')) {
-            try {
-              const jsonStr = trimmedLine.replace('data: ', '');
-              console.log('Extracting JSON from data line:', jsonStr);
-              const messageData = JSON.parse(jsonStr);
-              console.log('Parsed message data:', messageData);
-              
-              const assistantMessage: Message = {
-                id: (Date.now() + Math.random()).toString(),
-                content: messageData.message || 'No response received',
-                role: (messageData.role as 'user' | 'assistant') || 'assistant',
-                timestamp: new Date()
-              };
-
-              setMessages(prev => [...prev, assistantMessage]);
-              messageProcessed = true;
-              
-              console.log('✅ Added message to conversation:', {
-                messageId: assistantMessage.id,
-                content: assistantMessage.content,
-                role: assistantMessage.role
-              });
-            } catch (parseError) {
-              console.error('Error parsing message data from data line:', parseError, 'from line:', trimmedLine);
-            }
-          }
-          // Handle lines that are pure JSON (no "data: " prefix)
-          else if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
-            try {
-              console.log('Parsing pure JSON line:', trimmedLine);
-              const messageData = JSON.parse(trimmedLine);
-              console.log('Parsed message data:', messageData);
-              
-              const assistantMessage: Message = {
-                id: (Date.now() + Math.random()).toString(),
-                content: messageData.message || 'No response received',
-                role: (messageData.role as 'user' | 'assistant') || 'assistant',
-                timestamp: new Date()
-              };
-
-              setMessages(prev => [...prev, assistantMessage]);
-              messageProcessed = true;
-              
-              console.log('✅ Added message to conversation:', {
-                messageId: assistantMessage.id,
-                content: assistantMessage.content,
-                role: assistantMessage.role
-              });
-            } catch (parseError) {
-              console.error('Error parsing pure JSON line:', parseError, 'from line:', trimmedLine);
-            }
-          }
-        }
-        
-        if (!messageProcessed) {
-          console.warn('No message was processed from SSE response');
-        }
-        
-        return; // Exit early for SSE-style responses
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Handle regular JSON response (fallback)
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: responseData.message || 'No response received',
-        role: (responseData.role as 'user' | 'assistant') || 'assistant',
-        timestamp: new Date()
-      };
+      console.log('SSE connection established, processing stream...');
 
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      console.log('✅ Added message to conversation:', {
-        messageId: assistantMessage.id,
-        content: assistantMessage.content,
-        role: assistantMessage.role
-      });
+      // Process the streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body reader available');
+      }
+
+      let buffer = '';
+      let messageProcessed = false;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            console.log('🏁 Stream ended');
+            break;
+          }
+
+          // Decode the chunk and add to buffer
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete lines
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            
+            if (!trimmedLine) {
+              continue; // Skip empty lines
+            }
+
+            console.log('Processing SSE line:', trimmedLine);
+
+            // Handle end of stream
+            if (trimmedLine === 'data: [DONE]') {
+              console.log('🏁 End of stream detected - server is done sending messages');
+              continue;
+            }
+
+            // Handle text events (progress messages)
+            if (trimmedLine.startsWith('event: text')) {
+              continue; // The data will be on the next line
+            }
+
+            if (trimmedLine.startsWith('data: ')) {
+              const dataContent = trimmedLine.substring(6); // Remove "data: " prefix
+              
+              // Try to parse as JSON first (for assistant messages)
+              try {
+                const messageData = JSON.parse(dataContent);
+                console.log('Parsed assistant message:', messageData);
+                
+                const assistantMessage: Message = {
+                  id: (Date.now() + Math.random()).toString(),
+                  content: messageData.message || 'No response received',
+                  role: (messageData.role as 'user' | 'assistant') || 'assistant',
+                  timestamp: new Date()
+                };
+
+                setMessages(prev => [...prev, assistantMessage]);
+                messageProcessed = true;
+                
+                console.log('✅ Added assistant message to conversation:', {
+                  messageId: assistantMessage.id,
+                  content: assistantMessage.content,
+                  role: assistantMessage.role
+                });
+              } catch (parseError) {
+                // If JSON parsing fails, treat as plain text (progress message)
+                console.log('Displaying progress text:', dataContent);
+                
+                // Add progress message as temporary assistant message
+                const progressMessage: Message = {
+                  id: `progress-${Date.now() + Math.random()}`,
+                  content: `🔄 ${dataContent}`,
+                  role: 'assistant',
+                  timestamp: new Date()
+                };
+
+                setMessages(prev => [...prev, progressMessage]);
+                console.log('✅ Added progress message:', dataContent);
+              }
+            }
+
+            // Handle pure JSON lines (fallback for direct JSON)
+            else if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+              try {
+                const messageData = JSON.parse(trimmedLine);
+                console.log('Parsed pure JSON message:', messageData);
+                
+                const assistantMessage: Message = {
+                  id: (Date.now() + Math.random()).toString(),
+                  content: messageData.message || 'No response received',
+                  role: (messageData.role as 'user' | 'assistant') || 'assistant',
+                  timestamp: new Date()
+                };
+
+                setMessages(prev => [...prev, assistantMessage]);
+                messageProcessed = true;
+                
+                console.log('✅ Added JSON message to conversation:', {
+                  messageId: assistantMessage.id,
+                  content: assistantMessage.content,
+                  role: assistantMessage.role
+                });
+              } catch (parseError) {
+                console.error('Error parsing pure JSON line:', parseError, 'from line:', trimmedLine);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      if (!messageProcessed) {
+        console.warn('No final message was processed from SSE stream');
+        // Add a fallback message
+        const fallbackMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: 'Processing completed',
+          role: 'assistant',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, fallbackMessage]);
+      }
+
     } catch (error) {
       console.log('=== ERROR OCCURRED ===');
       console.error('Full error object:', error);
-      
-      // Clear server processing state on error
-      setIsServerProcessing(false);
       
       // Log detailed error information
       console.error('Error sending message to agent:', {
@@ -215,28 +231,11 @@ const Chat: React.FC = () => {
         userMessage: userMessage.content
       });
 
-      console.error('Error sending message:', error);
-      
-      // Check if it's a network error
-      if (axios.isAxiosError(error)) {
-        console.log('This is an Axios error');
-        console.log('Error code:', error.code);
-        console.log('Error message:', error.message);
-        console.log('Response status:', error.response?.status);
-        console.log('Response data:', error.response?.data);
-      } else {
-        console.log('This is not an Axios error');
-      }
-      
       let errorMessage = 'Failed to send message';
-      if (axios.isAxiosError(error)) {
-        if (error.code === 'ECONNREFUSED') {
-          errorMessage = 'Could not connect to the service. Make sure your service is running on localhost:5991';
-        } else if (error.response?.status === 404) {
-          errorMessage = 'API endpoint not found. Check your service\'s API path';
-        } else if (error.response?.data?.message) {
-          errorMessage = error.response.data.message;
-        }
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        errorMessage = 'Could not connect to the service. Make sure your service is running on localhost:5991';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
       }
 
       const errorMsg: Message = {
@@ -249,21 +248,16 @@ const Chat: React.FC = () => {
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
-      // Note: setIsServerProcessing(false) is only called when [DONE] is received
       console.log('=== SEND MESSAGE COMPLETED ===');
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
     }
   };
 
   const clearChat = () => {
     setMessages([]);
   };
+
+  // Extract user message history for input navigation
+  const userHistory = messages.filter(m => m.role === 'user').map(m => m.content);
 
   return (
     <div className="chat-container">
@@ -312,22 +306,7 @@ const Chat: React.FC = () => {
       </div>
       
       <div className="input-container">
-        <textarea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
-          className="message-input"
-          disabled={isLoading || isServerProcessing}
-          rows={1}
-        />
-        <button 
-          onClick={sendMessage} 
-          disabled={!inputValue.trim() || isLoading || isServerProcessing}
-          className="send-button"
-        >
-          {isLoading ? 'Sending...' : isServerProcessing ? 'Processing...' : 'Send'}
-        </button>
+        <ChatInput onSend={sendMessage} history={userHistory} />
       </div>
     </div>
   );

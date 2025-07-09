@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = 5991;
+const PORT = 3001;
 
 // Middleware
 app.use(cors());
@@ -40,7 +40,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy' });
 });
 
-app.listen(PORT, 'localhost', () => {
-    console.log(`Chat server running on http://localhost:${PORT}`);
-    console.log('API endpoint: http://localhost:' + PORT + '/api/chat');
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Chat server running on http://0.0.0.0:${PORT}`);
+    console.log('API endpoint: http://0.0.0.0:' + PORT + '/api/chat');
 });

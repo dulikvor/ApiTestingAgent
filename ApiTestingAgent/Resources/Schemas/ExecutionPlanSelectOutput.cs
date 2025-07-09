@@ -23,7 +23,7 @@ namespace ApiTestingAgent.Resources.Schemas
     public class ExecutionExpectation
     {
         [JsonPropertyName("expectedStatusCode")]
-        public int ExpectedStatusCode { get; set; }
+        public int? ExpectedStatusCode { get; set; }
 
         [JsonPropertyName("expectedContent")]
         public object? ExpectedContent { get; set; }

@@ -13,35 +13,9 @@
       "type": "string",
       "description": "If expectations were not met and a content-only change would likely fix it, provide a revised natural-language user instruction to guide command selection."
     },
-    "stepNumber": {
-      "type": "integer",
-      "description": "For execution plans, the step number that the correctedUserMessage applies to. Omit for single commands."
-    },
-    "executionSummary": {
-      "type": "object",
-      "description": "Summary of execution plan results, if applicable.",
-      "properties": {
-        "totalSteps": {
-          "type": "integer",
-          "description": "Total number of steps in the execution plan."
-        },
-        "successfulSteps": {
-          "type": "integer",
-          "description": "Number of steps that completed successfully."
-        },
-        "failedStep": {
-          "type": "integer",
-          "description": "The step number where execution failed, if any."
-        },
-        "stoppedExecution": {
-          "type": "boolean",
-          "description": "Whether execution was stopped due to a failure."
-        }
-      }
-    },
     "nextState": {
       "type": "string",
-      "enum": ["CommandSelect", "ExpectedOutcome", "PlanInvoke", "ExecutionPlanSelect", "None"],
+      "enum": ["CommandSelect", "ExecutionPlanSelect", "None"],
       "description": "The next state to transition to."
     },
     "reasoning": {

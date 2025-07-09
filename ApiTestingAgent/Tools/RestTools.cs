@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Net;
 using ApiTestingAgent.Tools.Utitlities;
 using System.Text.Json.Serialization;
+using ApiTestingAgent.Data.Stream;
 
 namespace ApiTestingAgent.Tools
 {
@@ -20,10 +21,12 @@ namespace ApiTestingAgent.Tools
     public class RestTools
     {
         private readonly IRestClient _restClient;
+        private readonly IStreamWriter _streamWriter;
 
-        public RestTools(IRestClient restClient)
+        public RestTools(IRestClient restClient, IStreamWriter streamWriter)
         {
             _restClient = restClient ?? throw new ArgumentNullException(nameof(restClient));
+            _streamWriter = streamWriter ?? throw new ArgumentNullException(nameof(streamWriter));
         }
 
         /// <summary>
@@ -47,6 +50,8 @@ namespace ApiTestingAgent.Tools
         {
             // Print tool arguments (excluding body/content)
             Console.WriteLine($"RestTools.InvokeRestAsync arguments: method={method}, url={url}");
+            var httpContext = (HttpContext)Data.CallContext.GetData("HttpContext")!;
+            await _streamWriter.WriteTextToStreamAsync(httpContext, $"Invoked {method} {url}");
             var result = await _restClient.InvokeRest(method, url, null!, body);
             // Print only the HTTP status code in the response
             Console.WriteLine($"RestTools.InvokeRestAsync response HttpStatusCode: {result.HttpStatusCode}");

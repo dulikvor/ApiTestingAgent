@@ -1,4 +1,5 @@
 using ApiTestingAgent.Data;
+using ApiTestingAgent.Data.Stream;
 using ApiTestingAgent.Http;
 using ApiTestingAgent.Prompts;
 using ApiTestingAgent.Tools;
@@ -21,6 +22,8 @@ namespace ApiTestingAgent.Agent
             builder.Services.AddServiceHttpClient<IGitHubRawContentCdnClient, GitHubRawContentCdnClient, GitHubRawContentCdnClientOptions>();
             builder.Services.AddServiceHttpClient<IRestClient, RestClient>(ignoreServerCertificateValidation: true);
 
+            builder.Services.AddSingleton<IStreamWriter, LocalChatServerSentEventsStreamWriter>();
+
             builder.Services.AddOptions<GitHubRawContentCdnClientOptions>()
             .Bind(configuration.GetSection(nameof(ServiceConfiguration.GitHubRawContentCdnClient)))
             .ValidateDataAnnotations()
@@ -28,8 +31,15 @@ namespace ApiTestingAgent.Agent
 
             builder.Plugins.AddFromType<SwaggerTools>("SwaggerTool");
             builder.Plugins.AddFromType<RestTools>("RestTools");
+            builder.Plugins.AddFromType<ThinkingTool>("ThinkingTool");
+            builder.Plugins.AddFromType<ExecutionPlanTools>("ExecutionPlanTools");
+            // builder.Plugins.AddFromType<AnalysisTool>("AnalysisTool");            
 
             var kernel = builder.Build();
+            
+            // Register kernel in GlobalContext for easy access
+            GlobalContext.SetData("Kernel", kernel);
+            
             services.AddChatCompletionAgent(configuration, kernel);
             services.AddPromptsAndSchemas(configuration, kernel);
             return services;

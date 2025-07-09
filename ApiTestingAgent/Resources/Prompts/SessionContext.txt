@@ -16,8 +16,5 @@ Selected Execution Plan :
 Selected Command:
 {{SelectedCommand}}
 
-Selected Command Result:
-{{SelectedCommandResult}}
-
 Corrected User Message For Command Select:
 {{CorrectedUserMessage}}
