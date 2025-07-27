@@ -5,5 +5,6 @@ namespace ApiTestingAgent.Data.Stream
         void StartStream(HttpContext httpContext);
         Task WriteToStreamAsync(HttpContext httpContext, IReadOnlyList<object> messages, object? eventType = null);
         Task CompleteStream(HttpContext httpContext);
+        Task WriteTextToStreamAsync(HttpContext httpContext, string message);
     }
 }

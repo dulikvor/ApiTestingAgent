@@ -3,11 +3,11 @@
   "properties": {
     "analysis": {
       "type": "string",
-      "description": "Full user-facing message, including all required sections."
+      "description": "Full user-facing message, including all required sections formatted as markdown."
     },
     "outcomeMatched": {
       "type": "boolean",
-      "description": "True if the actual result matches the expected outcome."
+      "description": "True if the actual result matches the expected outcome. For execution plans, true only if ALL steps succeeded."
     },
     "correctedUserMessage": {
       "type": "string",
@@ -15,7 +15,8 @@
     },
     "nextState": {
       "type": "string",
-      "description": "The next state to transition to. One of: 'CommandSelect', 'ExpectedOutcome', or 'None'."
+      "enum": ["CommandSelect", "ExecutionPlanSelect", "None"],
+      "description": "The next state to transition to."
     },
     "reasoning": {
       "type": "string",

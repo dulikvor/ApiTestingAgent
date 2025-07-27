@@ -10,11 +10,11 @@ Detected Api Versions and their respected swagger routes:
 Detected Rest operations:
 {{DetectedRestoperations}}
 
+Selected Execution Plan :
+{{SelectedExecutionPlan}}
+
 Selected Command:
 {{SelectedCommand}}
-
-Selected Command Result:
-{{SelectedCommandResult}}
 
 Corrected User Message For Command Select:
 {{CorrectedUserMessage}}

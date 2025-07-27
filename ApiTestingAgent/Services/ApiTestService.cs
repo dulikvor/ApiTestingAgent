@@ -30,10 +30,10 @@ namespace ApiTestingAgent.Services
 
         public async Task InvokeNext(HttpContext httpContext, CoPilotChatRequestMessage coPilotChatRequestMessage)
         {
-            
+            _streamReporter.StartStream(httpContext);
             var session = SessionStore<Session<ApiTestStateTransitions>, ApiTestStateTransitions>.GetSessions((string)CallContext.GetData("UserNameKey")!);
 
-            ApiTestStateTransitions transition = default;
+            ApiTestStateTransitions transition;
             StateContext<ApiTestStateTransitions> stateContext;
             if (session.CurrentStep != null)
             {
@@ -46,9 +46,20 @@ namespace ApiTestingAgent.Services
                 transition = ApiTestStateTransitions.DomainSelect;
             }
 
-            var chatHistory = new ChatHistory();
-            chatHistory.AddCoPilotChatRequestMessages(coPilotChatRequestMessage);
-            bool shouldProceed = false;
+            var chatHistory = await Agent.ChatHistoryExtensions.CreateAndSummarizeAsync(
+                coPilotChatRequestMessage, 
+                _promptAndSchemaRegistry);
+            
+            // Print chat history after summarization
+            Console.WriteLine("=== Chat History After Summarization ===");
+            foreach (var message in chatHistory)
+            {
+                Console.WriteLine($"{message.Role}: {message.Content}");
+                Console.WriteLine("---");
+            }
+            Console.WriteLine("=== End Chat History ===\n");
+            
+            bool shouldProceed;
             do
             {
                 // Collect current user selections from session StepResult
@@ -57,6 +68,7 @@ namespace ApiTestingAgent.Services
                     ["SelectedDomain"] = session.StepResult.TryGetValue("SelectedDomain", out var selectedDomain) ? selectedDomain ?? "none" : "none",
                     ["DetectedRestOperations"] = session.StepResult.TryGetValue("DetectedRestOperations", out var detectedRestOps) ? detectedRestOps ?? "none" : "none",
                     ["SelectedCommand"] = session.StepResult.TryGetValue("SelectedCommand", out var selectedCommand) ? selectedCommand ?? "none" : "none",
+                    ["SelectedExecutionPlan"] = session.StepResult.TryGetValue("SelectedExecutionPlan", out var selectedExecutionPlan) ? selectedExecutionPlan ?? "none" : "none",
                     ["SelectedCommandResult"] = session.StepResult.TryGetValue("SelectedCommandResult", out var selectedCommandResult) ? selectedCommandResult ?? "none" : "none",
                     ["CorrectedUserMessage"] = session.StepResult.TryGetValue("CorrectedUserMessage", out var correctedUserMessage) ? correctedUserMessage ?? "none" : "none",
                     ["DetectedSwaggerRoutes"] = session.StepResult.TryGetValue("DetectedSwaggerRoutes", out var detectedSwaggerRoutes) ? detectedSwaggerRoutes ?? "none" : "none"
