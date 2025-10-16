@@ -7,8 +7,12 @@ import ChatInput from '../../components/ChatInput.jsx';
 interface Message {
   id: string;
   content: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'function';
   timestamp: Date;
+  isFunction?: boolean;
+  functionName?: string;
+  functionStatus?: 'running' | 'completed';
+  includeInHistory?: boolean; // Controls whether this message is sent to AI
 }
 
 const Chat: React.FC = () => {
@@ -44,7 +48,8 @@ const Chat: React.FC = () => {
       id: Date.now().toString(),
       content: content.trim(),
       role: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      includeInHistory: true
     };
 
     console.log('Created user message:', userMessage);
@@ -53,15 +58,17 @@ const Chat: React.FC = () => {
     console.log('UI state updated, starting SSE connection...');
 
     try {
-      // Get current conversation history
+      // Get current conversation history (excluding function messages)
       const currentMessages = [...messages, userMessage];
       
-      // Prepare the request payload with full conversation history
+      // Prepare the request payload with conversation history (exclude function messages)
       const requestPayload = {
-        messages: currentMessages.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }))
+        messages: currentMessages
+          .filter(msg => msg.includeInHistory !== false) // Include messages unless explicitly excluded
+          .map(msg => ({
+            role: msg.role === 'function' ? 'assistant' : msg.role, // Convert function role to assistant for API
+            content: msg.content
+          }))
       };
 
       // Log the message structure being sent to the agent
@@ -136,8 +143,53 @@ const Chat: React.FC = () => {
               continue; // The data will be on the next line
             }
 
+            // Handle function events
+            if (trimmedLine.startsWith('event: function')) {
+              continue; // The data will be on the next line
+            }
+
             if (trimmedLine.startsWith('data: ')) {
               const dataContent = trimmedLine.substring(6); // Remove "data: " prefix
+              
+              // Handle function events
+              if (dataContent.startsWith('[START] ')) {
+                const functionName = dataContent.substring(8); // Remove "[START] " prefix
+                console.log('Function started:', functionName);
+                
+                const functionMessage: Message = {
+                  id: (Date.now() + Math.random()).toString(),
+                  content: functionName,
+                  role: 'function',
+                  timestamp: new Date(),
+                  isFunction: true,
+                  functionName: functionName,
+                  functionStatus: 'running',
+                  includeInHistory: false // Don't include in AI conversation history
+                };
+                
+                setMessages(prev => [...prev, functionMessage]);
+                continue;
+              }
+              
+              if (dataContent === '[END]') {
+                console.log('Function ended');
+                
+                // Find the most recent running function and mark it as completed
+                setMessages(prev => {
+                  let functionUpdated = false;
+                  const updatedMessages = [...prev].reverse().map(msg => {
+                    if (!functionUpdated && msg.isFunction && msg.functionStatus === 'running') {
+                      functionUpdated = true;
+                      return { ...msg, functionStatus: 'completed' as const };
+                    }
+                    return msg;
+                  }).reverse();
+                  return updatedMessages;
+                });
+                
+                // Keep completed function messages visible (don't remove them)
+                continue;
+              }
               
               // Try to parse as JSON first (for assistant messages)
               try {
@@ -148,7 +200,8 @@ const Chat: React.FC = () => {
                   id: (Date.now() + Math.random()).toString(),
                   content: messageData.message || 'No response received',
                   role: (messageData.role as 'user' | 'assistant') || 'assistant',
-                  timestamp: new Date()
+                  timestamp: new Date(),
+                  includeInHistory: true
                 };
 
                 setMessages(prev => [...prev, assistantMessage]);
@@ -168,7 +221,8 @@ const Chat: React.FC = () => {
                   id: `progress-${Date.now() + Math.random()}`,
                   content: `🔄 ${dataContent}`,
                   role: 'assistant',
-                  timestamp: new Date()
+                  timestamp: new Date(),
+                  includeInHistory: true
                 };
 
                 setMessages(prev => [...prev, progressMessage]);
@@ -186,7 +240,8 @@ const Chat: React.FC = () => {
                   id: (Date.now() + Math.random()).toString(),
                   content: messageData.message || 'No response received',
                   role: (messageData.role as 'user' | 'assistant') || 'assistant',
-                  timestamp: new Date()
+                  timestamp: new Date(),
+                  includeInHistory: true
                 };
 
                 setMessages(prev => [...prev, assistantMessage]);
@@ -214,7 +269,8 @@ const Chat: React.FC = () => {
           id: (Date.now() + 1).toString(),
           content: 'Processing completed',
           role: 'assistant',
-          timestamp: new Date()
+          timestamp: new Date(),
+          includeInHistory: true
         };
         setMessages(prev => [...prev, fallbackMessage]);
       }
@@ -242,7 +298,8 @@ const Chat: React.FC = () => {
         id: (Date.now() + 1).toString(),
         content: `Error: ${errorMessage}`,
         role: 'assistant',
-        timestamp: new Date()
+        timestamp: new Date(),
+        includeInHistory: true
       };
 
       setMessages(prev => [...prev, errorMsg]);
@@ -275,19 +332,37 @@ const Chat: React.FC = () => {
             <p className="service-info">Make sure your service is running and accessible at the configured endpoint.</p>
           </div>
         )}
+
+
         
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`message ${message.role}`}
-          >
-            <div className="message-content">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+          message.isFunction ? (
+            <div key={message.id} className="function-indicator">
+              <div className="function-content">
+                {message.functionStatus === 'running' ? (
+                  <div className="function-spinner"></div>
+                ) : (
+                  <div className="function-check">✅</div>
+                )}
+                <span className="function-name">{message.functionName}</span>
+              </div>
+              <div className="message-timestamp">
+                {message.timestamp.toLocaleTimeString()}
+              </div>
             </div>
-            <div className="message-timestamp">
-              {message.timestamp.toLocaleTimeString()}
+          ) : (
+            <div
+              key={message.id}
+              className={`message ${message.role}`}
+            >
+              <div className="message-content">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
+              <div className="message-timestamp">
+                {message.timestamp.toLocaleTimeString()}
+              </div>
             </div>
-          </div>
+          )
         ))}
         
         {isLoading && (

@@ -291,3 +291,60 @@
 .messages-container::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
+
+/* Function Call Indicators */
+.function-indicator {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 1rem;
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  max-width: 70%;
+  align-self: flex-start;
+}
+
+.function-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.function-name {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #1565c0;
+  font-weight: 500;
+}
+
+.function-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e3f2fd;
+  border-top: 2px solid #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.function-check {
+  font-size: 16px;
+  animation: checkAppear 0.3s ease-in-out;
+  color: #4caf50;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes checkAppear {
+  0% { 
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
