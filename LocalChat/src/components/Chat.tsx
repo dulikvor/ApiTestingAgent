@@ -19,9 +19,11 @@ const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const agentStreamRef = useRef<EventSource | null>(null);
 
   // Your service endpoint
   const API_ENDPOINT = 'http://localhost:5991';
+  const AGENT_STREAM_ENDPOINT = 'http://localhost:3002/api/agent-stream';
 
   // Log when component loads
   console.log('Chat component loaded. API endpoint:', API_ENDPOINT);
@@ -33,6 +35,139 @@ const Chat: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Connect to agent stream for receiving pushed messages
+  useEffect(() => {
+    console.log('Connecting to agent stream:', AGENT_STREAM_ENDPOINT);
+    
+    const eventSource = new EventSource(AGENT_STREAM_ENDPOINT);
+    agentStreamRef.current = eventSource;
+    
+    eventSource.onopen = () => {
+      console.log('Agent stream connected');
+    };
+    
+    eventSource.addEventListener('connected', (event) => {
+      console.log('Agent stream ready:', event.data);
+    });
+    
+    eventSource.onmessage = (event) => {
+      console.log('Received agent message:', event.data);
+      
+      // Handle end of stream
+      if (event.data === '[DONE]') {
+        console.log('Agent stream: done signal received');
+        return;
+      }
+      
+      // Handle function events
+      if (event.data.startsWith('[START] ')) {
+        const functionName = event.data.substring(8);
+        console.log('Agent function started:', functionName);
+        
+        const functionMessage: Message = {
+          id: (Date.now() + Math.random()).toString(),
+          content: functionName,
+          role: 'function',
+          timestamp: new Date(),
+          isFunction: true,
+          functionName: functionName,
+          functionStatus: 'running',
+          includeInHistory: false
+        };
+        
+        setMessages(prev => [...prev, functionMessage]);
+        return;
+      }
+      
+      if (event.data === '[END]') {
+        console.log('Agent function ended');
+        setMessages(prev => {
+          let functionUpdated = false;
+          const updatedMessages = [...prev].reverse().map(msg => {
+            if (!functionUpdated && msg.isFunction && msg.functionStatus === 'running') {
+              functionUpdated = true;
+              return { ...msg, functionStatus: 'completed' as const };
+            }
+            return msg;
+          }).reverse();
+          return updatedMessages;
+        });
+        return;
+      }
+      
+      // Try to parse as JSON (chat message)
+      try {
+        const messageData = JSON.parse(event.data);
+        console.log('Parsed agent message:', messageData);
+        
+        const agentMessage: Message = {
+          id: (Date.now() + Math.random()).toString(),
+          content: messageData.message || messageData.content || 'No content',
+          role: (messageData.role as 'user' | 'assistant') || 'assistant',
+          timestamp: new Date(),
+          includeInHistory: true
+        };
+        
+        setMessages(prev => [...prev, agentMessage]);
+        console.log('Added pushed agent message:', agentMessage);
+      } catch (parseError) {
+        console.log('Non-JSON agent message:', event.data);
+      }
+    };
+    
+    eventSource.addEventListener('function', (event) => {
+      console.log('Agent function event:', event.data);
+      
+      if (event.data.startsWith('[START] ')) {
+        const functionName = event.data.substring(8);
+        const functionMessage: Message = {
+          id: (Date.now() + Math.random()).toString(),
+          content: functionName,
+          role: 'function',
+          timestamp: new Date(),
+          isFunction: true,
+          functionName: functionName,
+          functionStatus: 'running',
+          includeInHistory: false
+        };
+        setMessages(prev => [...prev, functionMessage]);
+      } else if (event.data === '[END]') {
+        setMessages(prev => {
+          let functionUpdated = false;
+          const updatedMessages = [...prev].reverse().map(msg => {
+            if (!functionUpdated && msg.isFunction && msg.functionStatus === 'running') {
+              functionUpdated = true;
+              return { ...msg, functionStatus: 'completed' as const };
+            }
+            return msg;
+          }).reverse();
+          return updatedMessages;
+        });
+      }
+    });
+    
+    eventSource.addEventListener('text', (event) => {
+      console.log('Agent text event:', event.data);
+      const textMessage: Message = {
+        id: (Date.now() + Math.random()).toString(),
+        content: `🔄 ${event.data}`,
+        role: 'assistant',
+        timestamp: new Date(),
+        includeInHistory: false
+      };
+      setMessages(prev => [...prev, textMessage]);
+    });
+    
+    eventSource.onerror = (error) => {
+      console.error('Agent stream error:', error);
+    };
+    
+    return () => {
+      console.log('Disconnecting from agent stream');
+      eventSource.close();
+    };
+  }, []);
 
   const sendMessage = async (content: string) => {
     console.log('=== SEND MESSAGE STARTED ===');

@@ -1,0 +1,14 @@
+﻿<!DOCTYPE html>
+<html>
+<head><title>SSE Test</title></head>
+<body>
+<h1>SSE Test</h1>
+<div id="messages"></div>
+<script>
+const es = new EventSource('http://localhost:3002/api/agent-stream');
+es.onopen = () => { document.getElementById('messages').innerHTML += '<p>Connected!</p>'; };
+es.onmessage = (e) => { document.getElementById('messages').innerHTML += '<p>Message: ' + e.data + '</p>'; };
+es.onerror = (e) => { document.getElementById('messages').innerHTML += '<p style="color:red">Error: ' + JSON.stringify(e) + '</p>'; };
+</script>
+</body>
+</html>
