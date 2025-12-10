@@ -38,6 +38,15 @@
   background-color: #c82333;
 }
 
+/* Messages wrapper - contains divider and scrolling messages */
+.messages-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;
@@ -45,12 +54,38 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  position: relative;
+}
+
+/* Split view layout */
+.messages-container.split-view {
+  position: relative;
+}
+
+/* The divider - positioned absolutely within the wrapper, outside scroll */
+.split-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 6px;
+  transform: translateX(-50%);
+  background: linear-gradient(to right, #d0d0d0, #b0b0b0, #d0d0d0);
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .welcome-message {
   text-align: center;
   color: #666;
   padding: 2rem;
+  position: relative;
+  z-index: 20;
+  background: white;
+  margin: 0 auto;
+  max-width: 80%;
+  border-radius: 8px;
 }
 
 .service-info {
@@ -59,25 +94,67 @@
 }
 
 .message {
-  max-width: 70%;
+  max-width: 45%;
   padding: 0.75rem 1rem;
   border-radius: 12px;
   position: relative;
   word-wrap: break-word;
 }
 
-.message.user {
+/* Left side messages (Dline) */
+.message.left-side {
+  align-self: flex-start;
+  margin-right: auto;
+  margin-left: 0;
+}
+
+/* Right side messages (Critic) */
+.message.right-side {
   align-self: flex-end;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.message.user {
+  align-self: center;
+  max-width: 70%;
   background-color: #007bff;
   color: white;
-  margin-left: auto;
 }
 
 .message.assistant {
-  align-self: flex-start;
   background-color: #f1f3f5;
   color: #333;
   border: 1px solid #e9ecef;
+}
+
+/* Agent-specific colors */
+.message.agent-dline {
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+}
+
+.message.agent-critic {
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+}
+
+/* Agent label styling */
+.agent-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+  opacity: 0.7;
+}
+
+.agent-dline .agent-label {
+  color: #1565c0;
+}
+
+.agent-critic .agent-label {
+  color: #2e7d32;
 }
 
 .message-content {
@@ -301,8 +378,38 @@
   border: 1px solid #bbdefb;
   border-radius: 8px;
   margin-bottom: 0.5rem;
-  max-width: 70%;
+  max-width: 45%;
+}
+
+/* Left side function indicators */
+.function-indicator.left-side {
   align-self: flex-start;
+  margin-right: auto;
+}
+
+/* Right side function indicators */
+.function-indicator.right-side {
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+/* Agent-specific function indicator colors */
+.function-indicator.agent-dline {
+  background-color: #e3f2fd;
+  border-color: #bbdefb;
+}
+
+.function-indicator.agent-critic {
+  background-color: #e8f5e9;
+  border-color: #c8e6c9;
+}
+
+.function-indicator.agent-dline .function-name {
+  color: #1565c0;
+}
+
+.function-indicator.agent-critic .function-name {
+  color: #2e7d32;
 }
 
 .function-content {

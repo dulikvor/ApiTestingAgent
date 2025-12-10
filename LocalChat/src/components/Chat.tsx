@@ -13,6 +13,7 @@ interface Message {
   functionName?: string;
   functionStatus?: 'running' | 'completed';
   includeInHistory?: boolean; // Controls whether this message is sent to AI
+  agentName?: string; // Name of the agent that sent the message
 }
 
 const Chat: React.FC = () => {
@@ -62,8 +63,12 @@ const Chat: React.FC = () => {
       
       // Handle function events
       if (event.data.startsWith('[START] ')) {
-        const functionName = event.data.substring(8);
-        console.log('Agent function started:', functionName);
+        const functionData = event.data.substring(8);
+        // Parse agentName:functionName format
+        const colonIndex = functionData.indexOf(':');
+        const agentName = colonIndex > -1 ? functionData.substring(0, colonIndex) : undefined;
+        const functionName = colonIndex > -1 ? functionData.substring(colonIndex + 1) : functionData;
+        console.log('Agent function started:', functionName, 'from agent:', agentName);
         
         const functionMessage: Message = {
           id: (Date.now() + Math.random()).toString(),
@@ -73,7 +78,8 @@ const Chat: React.FC = () => {
           isFunction: true,
           functionName: functionName,
           functionStatus: 'running',
-          includeInHistory: false
+          includeInHistory: false,
+          agentName: agentName
         };
         
         setMessages(prev => [...prev, functionMessage]);
@@ -106,7 +112,8 @@ const Chat: React.FC = () => {
           content: messageData.message || messageData.content || 'No content',
           role: (messageData.role as 'user' | 'assistant') || 'assistant',
           timestamp: new Date(),
-          includeInHistory: true
+          includeInHistory: true,
+          agentName: messageData.agentName
         };
         
         setMessages(prev => [...prev, agentMessage]);
@@ -120,7 +127,11 @@ const Chat: React.FC = () => {
       console.log('Agent function event:', event.data);
       
       if (event.data.startsWith('[START] ')) {
-        const functionName = event.data.substring(8);
+        const functionData = event.data.substring(8);
+        // Parse agentName:functionName format
+        const colonIndex = functionData.indexOf(':');
+        const agentName = colonIndex > -1 ? functionData.substring(0, colonIndex) : undefined;
+        const functionName = colonIndex > -1 ? functionData.substring(colonIndex + 1) : functionData;
         const functionMessage: Message = {
           id: (Date.now() + Math.random()).toString(),
           content: functionName,
@@ -129,7 +140,8 @@ const Chat: React.FC = () => {
           isFunction: true,
           functionName: functionName,
           functionStatus: 'running',
-          includeInHistory: false
+          includeInHistory: false,
+          agentName: agentName
         };
         setMessages(prev => [...prev, functionMessage]);
       } else if (event.data === '[END]') {
@@ -149,12 +161,17 @@ const Chat: React.FC = () => {
     
     eventSource.addEventListener('text', (event) => {
       console.log('Agent text event:', event.data);
+      // Parse agentName:message format
+      const colonIndex = event.data.indexOf(':');
+      const agentName = colonIndex > -1 ? event.data.substring(0, colonIndex) : undefined;
+      const textContent = colonIndex > -1 ? event.data.substring(colonIndex + 1) : event.data;
       const textMessage: Message = {
         id: (Date.now() + Math.random()).toString(),
-        content: `🔄 ${event.data}`,
+        content: `🔄 ${textContent}`,
         role: 'assistant',
         timestamp: new Date(),
-        includeInHistory: false
+        includeInHistory: false,
+        agentName: agentName
       };
       setMessages(prev => [...prev, textMessage]);
     });
@@ -288,8 +305,12 @@ const Chat: React.FC = () => {
               
               // Handle function events
               if (dataContent.startsWith('[START] ')) {
-                const functionName = dataContent.substring(8); // Remove "[START] " prefix
-                console.log('Function started:', functionName);
+                const functionData = dataContent.substring(8); // Remove "[START] " prefix
+                // Parse agentName:functionName format
+                const colonIndex = functionData.indexOf(':');
+                const agentName = colonIndex > -1 ? functionData.substring(0, colonIndex) : undefined;
+                const functionName = colonIndex > -1 ? functionData.substring(colonIndex + 1) : functionData;
+                console.log('Function started:', functionName, 'from agent:', agentName);
                 
                 const functionMessage: Message = {
                   id: (Date.now() + Math.random()).toString(),
@@ -299,7 +320,8 @@ const Chat: React.FC = () => {
                   isFunction: true,
                   functionName: functionName,
                   functionStatus: 'running',
-                  includeInHistory: false // Don't include in AI conversation history
+                  includeInHistory: false, // Don't include in AI conversation history
+                  agentName: agentName
                 };
                 
                 setMessages(prev => [...prev, functionMessage]);
@@ -336,7 +358,8 @@ const Chat: React.FC = () => {
                   content: messageData.message || 'No response received',
                   role: (messageData.role as 'user' | 'assistant') || 'assistant',
                   timestamp: new Date(),
-                  includeInHistory: true
+                  includeInHistory: true,
+                  agentName: messageData.agentName
                 };
 
                 setMessages(prev => [...prev, assistantMessage]);
@@ -345,19 +368,26 @@ const Chat: React.FC = () => {
                 console.log('✅ Added assistant message to conversation:', {
                   messageId: assistantMessage.id,
                   content: assistantMessage.content,
-                  role: assistantMessage.role
+                  role: assistantMessage.role,
+                  agentName: assistantMessage.agentName
                 });
               } catch (parseError) {
                 // If JSON parsing fails, treat as plain text (progress message)
                 console.log('Displaying progress text:', dataContent);
                 
+                // Parse agentName:message format for text messages
+                const colonIndex = dataContent.indexOf(':');
+                const agentName = colonIndex > -1 ? dataContent.substring(0, colonIndex) : undefined;
+                const textContent = colonIndex > -1 ? dataContent.substring(colonIndex + 1) : dataContent;
+                
                 // Add progress message as temporary assistant message
                 const progressMessage: Message = {
                   id: `progress-${Date.now() + Math.random()}`,
-                  content: `🔄 ${dataContent}`,
+                  content: `🔄 ${textContent}`,
                   role: 'assistant',
                   timestamp: new Date(),
-                  includeInHistory: true
+                  includeInHistory: true,
+                  agentName: agentName
                 };
 
                 setMessages(prev => [...prev, progressMessage]);
@@ -376,7 +406,8 @@ const Chat: React.FC = () => {
                   content: messageData.message || 'No response received',
                   role: (messageData.role as 'user' | 'assistant') || 'assistant',
                   timestamp: new Date(),
-                  includeInHistory: true
+                  includeInHistory: true,
+                  agentName: messageData.agentName
                 };
 
                 setMessages(prev => [...prev, assistantMessage]);
@@ -385,7 +416,8 @@ const Chat: React.FC = () => {
                 console.log('✅ Added JSON message to conversation:', {
                   messageId: assistantMessage.id,
                   content: assistantMessage.content,
-                  role: assistantMessage.role
+                  role: assistantMessage.role,
+                  agentName: assistantMessage.agentName
                 });
               } catch (parseError) {
                 console.error('Error parsing pure JSON line:', parseError, 'from line:', trimmedLine);
@@ -451,19 +483,34 @@ const Chat: React.FC = () => {
   // Extract user message history for input navigation
   const userHistory = messages.filter(m => m.role === 'user').map(m => m.content);
 
+  // Helper function to get agent class name for styling
+  const getAgentClass = (agentName?: string): string => {
+    if (!agentName) return '';
+    return `agent-${agentName.toLowerCase()}`;
+  };
+
+  // Helper function to determine which side the message should appear
+  const getAgentSide = (agentName?: string): 'left' | 'right' => {
+    // Dline on left, Critic on right
+    if (agentName?.toLowerCase() === 'critic') return 'right';
+    return 'left';
+  };
+
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <h2>Chat with Your Agent</h2>
+        <h2>Chat with Your Agents</h2>
         <button onClick={clearChat} className="clear-button">
           Clear Chat
         </button>
       </div>
       
-      <div className="messages-container">
-        {messages.length === 0 && (
+      <div className="messages-wrapper">
+        <div className="split-divider"></div>
+        <div className="messages-container split-view">
+          {messages.length === 0 && (
           <div className="welcome-message">
-            <p>Welcome! Start a conversation with your agent running on localhost:5991</p>
+            <p>Welcome! Start a conversation with your agents running on localhost:5991</p>
             <p className="service-info">Make sure your service is running and accessible at the configured endpoint.</p>
           </div>
         )}
@@ -472,7 +519,13 @@ const Chat: React.FC = () => {
         
         {messages.map((message) => (
           message.isFunction ? (
-            <div key={message.id} className="function-indicator">
+            <div 
+              key={message.id} 
+              className={`function-indicator ${getAgentClass(message.agentName)} ${getAgentSide(message.agentName)}-side`}
+            >
+              {message.agentName && (
+                <div className="agent-label">{message.agentName}</div>
+              )}
               <div className="function-content">
                 {message.functionStatus === 'running' ? (
                   <div className="function-spinner"></div>
@@ -488,8 +541,11 @@ const Chat: React.FC = () => {
           ) : (
             <div
               key={message.id}
-              className={`message ${message.role}`}
+              className={`message ${message.role} ${getAgentClass(message.agentName)} ${message.role === 'assistant' ? getAgentSide(message.agentName) + '-side' : ''}`}
             >
+              {message.agentName && message.role === 'assistant' && (
+                <div className="agent-label">{message.agentName}</div>
+              )}
               <div className="message-content">
                 <ReactMarkdown>{message.content}</ReactMarkdown>
               </div>
@@ -501,7 +557,7 @@ const Chat: React.FC = () => {
         ))}
         
         {isLoading && (
-          <div className="message assistant">
+          <div className="message assistant left-side">
             <div className="message-content">
               <div className="typing-indicator">
                 <span></span>
@@ -513,6 +569,7 @@ const Chat: React.FC = () => {
         )}
         
         <div ref={messagesEndRef} />
+      </div>
       </div>
       
       <div className="input-container">
